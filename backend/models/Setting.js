@@ -30,6 +30,13 @@ const DEFAULT_SETTINGS = {
 };
 
 const settingSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    unique: true,
+    index: true,
+  },
   parkingLotName: { type: String, default: DEFAULT_SETTINGS.parkingLotName },
   address: { type: String, default: DEFAULT_SETTINGS.address },
   timezone: { type: String, default: DEFAULT_SETTINGS.timezone },
@@ -60,7 +67,7 @@ const settingSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-settingSchema.index({ updatedAt: -1 });
+settingSchema.index({ company: 1, updatedAt: -1 });
 
 const Setting = mongoose.model("Setting", settingSchema);
 

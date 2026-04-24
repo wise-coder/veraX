@@ -50,6 +50,7 @@ const getParkingSlots = async (req, res, next) => {
     const { search, status } = req.query;
     const { page, limit, skip, sort } = getPagination(req.query, "positionIndex");
     const filter = {
+      company: req.companyId,
       ...buildSearchQuery(search, ["slotNumber"]),
     };
 
@@ -66,12 +67,12 @@ const getParkingSlots = async (req, res, next) => {
         .skip(skip)
         .limit(limit),
       ParkingSlot.countDocuments(filter),
-      ParkingSlot.countDocuments(),
-      ParkingSlot.countDocuments({ status: "occupied" }),
-      ParkingSlot.countDocuments({ status: "available" }),
-      ParkingSlot.countDocuments({ status: "reserved" }),
-      ParkingSlot.countDocuments({ status: "maintenance" }),
-      Payment.find({ status: "paid", paidAt: { $gte: start, $lte: end } }).select("amount"),
+      ParkingSlot.countDocuments({ company: req.companyId }),
+      ParkingSlot.countDocuments({ company: req.companyId, status: "occupied" }),
+      ParkingSlot.countDocuments({ company: req.companyId, status: "available" }),
+      ParkingSlot.countDocuments({ company: req.companyId, status: "reserved" }),
+      ParkingSlot.countDocuments({ company: req.companyId, status: "maintenance" }),
+      Payment.find({ company: req.companyId, status: "paid", paidAt: { $gte: start, $lte: end } }).select("amount"),
     ]);
 
     return res.json({
@@ -97,7 +98,11 @@ const getParkingSlots = async (req, res, next) => {
 
 const getAvailableSlots = async (req, res, next) => {
   try {
-    const slots = await ParkingSlot.find({ status: "available", currentVehicle: null }).sort({ positionIndex: 1 });
+    const slots = await ParkingSlot.find({
+      company: req.companyId,
+      status: "available",
+      currentVehicle: null,
+    }).sort({ positionIndex: 1 });
 
     return res.json({
       success: true,
@@ -113,7 +118,7 @@ const getAvailableSlots = async (req, res, next) => {
 
 const getParkingSlotById = async (req, res, next) => {
   try {
-    const slot = await ParkingSlot.findById(req.params.id)
+    const slot = await ParkingSlot.findOne({ _id: req.params.id, company: req.companyId })
       .populate("currentVehicle", "plateNumber ownerName ownerPhone vehicleType status entryTime exitTime");
 
     if (!slot) {
@@ -142,7 +147,7 @@ const createParkingSlot = async (req, res, next) => {
     }
 
     const normalizedSlotNumber = req.body.slotNumber.trim().toUpperCase();
-    const existingSlot = await ParkingSlot.findOne({ slotNumber: normalizedSlotNumber });
+    const existingSlot = await ParkingSlot.findOne({ company: req.companyId, slotNumber: normalizedSlotNumber });
 
     if (existingSlot) {
       return res.status(400).json({
@@ -151,10 +156,10 @@ const createParkingSlot = async (req, res, next) => {
       });
     }
 
-    const highestPositionSlot = await ParkingSlot.findOne().sort({ positionIndex: -1 });
+    const highestPositionSlot = await ParkingSlot.findOne({ company: req.companyId }).sort({ positionIndex: -1 });
     const positionIndex = req.body.positionIndex || (highestPositionSlot ? highestPositionSlot.positionIndex + 1 : 1);
 
-    const duplicatePosition = await ParkingSlot.findOne({ positionIndex });
+    const duplicatePosition = await ParkingSlot.findOne({ company: req.companyId, positionIndex });
 
     if (duplicatePosition) {
       return res.status(400).json({
@@ -171,6 +176,7 @@ const createParkingSlot = async (req, res, next) => {
     }
 
     const slot = await ParkingSlot.create({
+      company: req.companyId,
       slotNumber: normalizedSlotNumber,
       status: req.body.status || "available",
       positionIndex,
@@ -194,7 +200,8 @@ const updateParkingSlot = async (req, res, next) => {
       return validationResponse;
     }
 
-    const slot = await ParkingSlot.findById(req.params.id).populate("currentVehicle", "plateNumber ownerName vehicleType");
+    const slot = await ParkingSlot.findOne({ _id: req.params.id, company: req.companyId })
+      .populate("currentVehicle", "plateNumber ownerName vehicleType");
 
     if (!slot) {
       return res.status(404).json({
@@ -205,7 +212,11 @@ const updateParkingSlot = async (req, res, next) => {
 
     if (req.body.slotNumber) {
       const normalizedSlotNumber = req.body.slotNumber.trim().toUpperCase();
-      const duplicateSlot = await ParkingSlot.findOne({ _id: { $ne: slot._id }, slotNumber: normalizedSlotNumber });
+      const duplicateSlot = await ParkingSlot.findOne({
+        _id: { $ne: slot._id },
+        company: req.companyId,
+        slotNumber: normalizedSlotNumber,
+      });
 
       if (duplicateSlot) {
         return res.status(400).json({
@@ -220,6 +231,7 @@ const updateParkingSlot = async (req, res, next) => {
     if (req.body.positionIndex && Number(req.body.positionIndex) !== slot.positionIndex) {
       const duplicatePosition = await ParkingSlot.findOne({
         _id: { $ne: slot._id },
+        company: req.companyId,
         positionIndex: Number(req.body.positionIndex),
       });
 
@@ -258,6 +270,7 @@ const updateParkingSlot = async (req, res, next) => {
     await slot.save();
 
     const transaction = await Transaction.create({
+      company: req.companyId,
       transactionCode: generateCode("TRX"),
       vehicle: slot.currentVehicle?._id || null,
       plateNumber: slot.currentVehicle?.plateNumber || "N/A",
@@ -269,7 +282,7 @@ const updateParkingSlot = async (req, res, next) => {
       createdBy: req.user._id,
     });
 
-    const updatedSlot = await ParkingSlot.findById(slot._id)
+    const updatedSlot = await ParkingSlot.findOne({ _id: slot._id, company: req.companyId })
       .populate("currentVehicle", "plateNumber ownerName ownerPhone vehicleType status entryTime exitTime");
 
     return res.json({
@@ -287,7 +300,7 @@ const updateParkingSlot = async (req, res, next) => {
 
 const deleteParkingSlot = async (req, res, next) => {
   try {
-    const slot = await ParkingSlot.findById(req.params.id);
+    const slot = await ParkingSlot.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!slot) {
       return res.status(404).json({

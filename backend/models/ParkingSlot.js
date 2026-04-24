@@ -1,10 +1,15 @@
 const mongoose = require("mongoose");
 
 const parkingSlotSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
   slotNumber: {
     type: String,
     required: true,
-    unique: true,
     uppercase: true,
     trim: true,
   },
@@ -21,12 +26,13 @@ const parkingSlotSchema = new mongoose.Schema({
   positionIndex: {
     type: Number,
     required: true,
-    unique: true,
   },
 }, {
   timestamps: true,
 });
 
-parkingSlotSchema.index({ status: 1, positionIndex: 1 });
+parkingSlotSchema.index({ company: 1, slotNumber: 1 }, { unique: true });
+parkingSlotSchema.index({ company: 1, positionIndex: 1 }, { unique: true });
+parkingSlotSchema.index({ company: 1, status: 1, positionIndex: 1 });
 
 module.exports = mongoose.model("ParkingSlot", parkingSlotSchema);

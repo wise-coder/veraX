@@ -6,6 +6,13 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 
 const connectDB = require("./config/db");
+const Company = require("./models/Company");
+const Payment = require("./models/Payment");
+const ParkingSlot = require("./models/ParkingSlot");
+const Setting = require("./models/Setting");
+const Transaction = require("./models/Transaction");
+const User = require("./models/User");
+const Vehicle = require("./models/Vehicle");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 const app = express();
@@ -57,6 +64,15 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
+  await Promise.all([
+    Company.syncIndexes(),
+    User.syncIndexes(),
+    Vehicle.syncIndexes(),
+    ParkingSlot.syncIndexes(),
+    Payment.syncIndexes(),
+    Transaction.syncIndexes(),
+    Setting.syncIndexes(),
+  ]);
 
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

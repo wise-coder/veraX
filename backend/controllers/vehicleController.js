@@ -137,11 +137,11 @@ const serializePayment = (payment) => ({
   updatedAt: payment.updatedAt,
 });
 
-const getAssignableSlot = async (parkingSlotId, settings) => {
+const getAssignableSlot = async (parkingSlotId, settings, companyId) => {
   let slot = null;
 
   if (parkingSlotId) {
-    slot = await ParkingSlot.findById(parkingSlotId);
+    slot = await ParkingSlot.findOne({ _id: parkingSlotId, company: companyId });
 
     if (!slot) {
       const error = new Error("Parking slot not found");
@@ -164,7 +164,11 @@ const getAssignableSlot = async (parkingSlotId, settings) => {
     throw error;
   }
 
-  slot = await ParkingSlot.findOne({ status: "available", currentVehicle: null }).sort({ positionIndex: 1 });
+  slot = await ParkingSlot.findOne({
+    company: companyId,
+    status: "available",
+    currentVehicle: null,
+  }).sort({ positionIndex: 1 });
 
   if (!slot) {
     const error = new Error("No available parking slot found");
@@ -182,9 +186,10 @@ const processVehicleCheckIn = async (req, res, successMessage) => {
     return validationResponse;
   }
 
-  const settings = await ensureSettings();
+  const settings = await ensureSettings(req.companyId);
   const normalizedPlateNumber = req.body.plateNumber.trim().toUpperCase();
   const activeVehicle = await Vehicle.findOne({
+    company: req.companyId,
     plateNumber: normalizedPlateNumber,
     status: "parked",
   });
@@ -196,12 +201,16 @@ const processVehicleCheckIn = async (req, res, successMessage) => {
     });
   }
 
-  const slot = await getAssignableSlot(req.body.parkingSlotId, settings);
+  const slot = await getAssignableSlot(req.body.parkingSlotId, settings, req.companyId);
   const entryTime = req.body.entryTime ? new Date(req.body.entryTime) : new Date();
-  let vehicle = await Vehicle.findOne({ plateNumber: normalizedPlateNumber }).sort({ updatedAt: -1 });
+  let vehicle = await Vehicle.findOne({
+    company: req.companyId,
+    plateNumber: normalizedPlateNumber,
+  }).sort({ updatedAt: -1 });
 
   if (!vehicle) {
     vehicle = new Vehicle({
+      company: req.companyId,
       plateNumber: normalizedPlateNumber,
       ownerName: req.body.ownerName,
       ownerPhone: req.body.ownerPhone,
@@ -214,6 +223,7 @@ const processVehicleCheckIn = async (req, res, successMessage) => {
   vehicle.ownerName = req.body.ownerName;
   vehicle.ownerPhone = req.body.ownerPhone;
   vehicle.vehicleType = req.body.vehicleType;
+  vehicle.company = req.companyId;
   vehicle.status = "parked";
   vehicle.currentSlot = slot._id;
   vehicle.entryTime = entryTime;
@@ -230,6 +240,7 @@ const processVehicleCheckIn = async (req, res, successMessage) => {
   await slot.save();
 
   const transaction = await Transaction.create({
+    company: req.companyId,
     transactionCode: generateCode("TRX"),
     vehicle: vehicle._id,
     plateNumber: vehicle.plateNumber,
@@ -242,12 +253,12 @@ const processVehicleCheckIn = async (req, res, successMessage) => {
   });
 
   const [populatedVehicle, populatedSlot, populatedTransaction, dashboard] = await Promise.all([
-    Vehicle.findById(vehicle._id).populate(VEHICLE_POPULATE),
-    ParkingSlot.findById(slot._id).populate(SLOT_POPULATE),
-    Transaction.findById(transaction._id)
+    Vehicle.findOne({ _id: vehicle._id, company: req.companyId }).populate(VEHICLE_POPULATE),
+    ParkingSlot.findOne({ _id: slot._id, company: req.companyId }).populate(SLOT_POPULATE),
+    Transaction.findOne({ _id: transaction._id, company: req.companyId })
       .populate("parkingSlot", "slotNumber")
       .populate("createdBy", "fullName role"),
-    getDashboardOverviewData(),
+    getDashboardOverviewData(req.companyId),
   ]);
 
   return res.status(201).json({
@@ -267,6 +278,7 @@ const getVehicles = async (req, res, next) => {
     const { search, status, vehicleType } = req.query;
     const { page, limit, skip, sort } = getPagination(req.query);
     const filter = {
+      company: req.companyId,
       ...buildSearchQuery(search, ["plateNumber", "ownerName", "ownerPhone"]),
     };
 
@@ -285,8 +297,8 @@ const getVehicles = async (req, res, next) => {
         .skip(skip)
         .limit(limit),
       Vehicle.countDocuments(filter),
-      Vehicle.countDocuments({ status: "parked" }),
-      Vehicle.countDocuments({ status: "checked_out" }),
+      Vehicle.countDocuments({ company: req.companyId, status: "parked" }),
+      Vehicle.countDocuments({ company: req.companyId, status: "checked_out" }),
     ]);
 
     return res.json({
@@ -325,7 +337,7 @@ const checkInVehicle = async (req, res, next) => {
 
 const getVehicleById = async (req, res, next) => {
   try {
-    const vehicle = await Vehicle.findById(req.params.id).populate(VEHICLE_POPULATE);
+    const vehicle = await Vehicle.findOne({ _id: req.params.id, company: req.companyId }).populate(VEHICLE_POPULATE);
 
     if (!vehicle) {
       return res.status(404).json({
@@ -335,12 +347,12 @@ const getVehicleById = async (req, res, next) => {
     }
 
     const [transactions, payments] = await Promise.all([
-      Transaction.find({ vehicle: vehicle._id })
+      Transaction.find({ company: req.companyId, vehicle: vehicle._id })
         .sort({ createdAt: -1 })
         .limit(10)
         .populate("parkingSlot", "slotNumber")
         .populate("createdBy", "fullName role"),
-      Payment.find({ vehicle: vehicle._id })
+      Payment.find({ company: req.companyId, vehicle: vehicle._id })
         .sort({ createdAt: -1 })
         .limit(10)
         .populate("receivedBy", "fullName role"),
@@ -368,7 +380,7 @@ const updateVehicle = async (req, res, next) => {
       return validationResponse;
     }
 
-    const vehicle = await Vehicle.findById(req.params.id);
+    const vehicle = await Vehicle.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -381,6 +393,7 @@ const updateVehicle = async (req, res, next) => {
       const normalizedPlateNumber = req.body.plateNumber.trim().toUpperCase();
       const duplicateActiveVehicle = await Vehicle.findOne({
         _id: { $ne: vehicle._id },
+        company: req.companyId,
         plateNumber: normalizedPlateNumber,
         status: "parked",
       });
@@ -401,7 +414,7 @@ const updateVehicle = async (req, res, next) => {
 
     await vehicle.save();
 
-    const updatedVehicle = await Vehicle.findById(vehicle._id).populate(VEHICLE_POPULATE);
+    const updatedVehicle = await Vehicle.findOne({ _id: vehicle._id, company: req.companyId }).populate(VEHICLE_POPULATE);
 
     return res.json({
       success: true,
@@ -415,7 +428,7 @@ const updateVehicle = async (req, res, next) => {
 
 const deleteVehicle = async (req, res, next) => {
   try {
-    const vehicle = await Vehicle.findById(req.params.id);
+    const vehicle = await Vehicle.findOne({ _id: req.params.id, company: req.companyId });
 
     if (!vehicle) {
       return res.status(404).json({
@@ -431,7 +444,7 @@ const deleteVehicle = async (req, res, next) => {
       });
     }
 
-    const pendingPayment = await Payment.findOne({ vehicle: vehicle._id, status: "pending" });
+    const pendingPayment = await Payment.findOne({ company: req.companyId, vehicle: vehicle._id, status: "pending" });
 
     if (pendingPayment) {
       return res.status(400).json({
@@ -454,7 +467,8 @@ const deleteVehicle = async (req, res, next) => {
 
 const checkOutVehicle = async (req, res, next) => {
   try {
-    const vehicle = await Vehicle.findById(req.params.id).populate("currentSlot", "slotNumber status positionIndex");
+    const vehicle = await Vehicle.findOne({ _id: req.params.id, company: req.companyId })
+      .populate("currentSlot", "slotNumber status positionIndex");
 
     if (!vehicle) {
       return res.status(404).json({
@@ -470,10 +484,10 @@ const checkOutVehicle = async (req, res, next) => {
       });
     }
 
-    const settings = await ensureSettings();
+    const settings = await ensureSettings(req.companyId);
     const now = new Date();
     const slotId = vehicle.currentSlot?._id || vehicle.currentSlot;
-    const slot = slotId ? await ParkingSlot.findById(slotId) : null;
+    const slot = slotId ? await ParkingSlot.findOne({ _id: slotId, company: req.companyId }) : null;
     const feeDetails = calculateParkingFee({
       entryTime: vehicle.entryTime,
       exitTime: now,
@@ -493,6 +507,7 @@ const checkOutVehicle = async (req, res, next) => {
     }
 
     const transaction = await Transaction.create({
+      company: req.companyId,
       transactionCode: generateCode("TRX"),
       vehicle: vehicle._id,
       plateNumber: vehicle.plateNumber,
@@ -506,6 +521,7 @@ const checkOutVehicle = async (req, res, next) => {
 
     const paymentStatus = req.body.markAsPaid || req.body.status === "paid" ? "paid" : "pending";
     const payment = await Payment.create({
+      company: req.companyId,
       paymentCode: generateCode("PAY"),
       vehicle: vehicle._id,
       plateNumber: vehicle.plateNumber,
@@ -518,6 +534,7 @@ const checkOutVehicle = async (req, res, next) => {
 
     if (payment.status === "paid") {
       await Transaction.create({
+        company: req.companyId,
         transactionCode: generateCode("TRX"),
         vehicle: vehicle._id,
         plateNumber: vehicle.plateNumber,
@@ -531,14 +548,14 @@ const checkOutVehicle = async (req, res, next) => {
     }
 
     const [updatedVehicle, updatedPayment, updatedTransaction, dashboard] = await Promise.all([
-      Vehicle.findById(vehicle._id).populate(VEHICLE_POPULATE),
-      Payment.findById(payment._id)
+      Vehicle.findOne({ _id: vehicle._id, company: req.companyId }).populate(VEHICLE_POPULATE),
+      Payment.findOne({ _id: payment._id, company: req.companyId })
         .populate("vehicle", "plateNumber")
         .populate("receivedBy", "fullName role"),
-      Transaction.findById(transaction._id)
+      Transaction.findOne({ _id: transaction._id, company: req.companyId })
         .populate("parkingSlot", "slotNumber")
         .populate("createdBy", "fullName role"),
-      getDashboardOverviewData(),
+      getDashboardOverviewData(req.companyId),
     ]);
 
     return res.json({

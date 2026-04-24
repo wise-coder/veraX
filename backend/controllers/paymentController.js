@@ -56,7 +56,7 @@ const getPayments = async (req, res, next) => {
   try {
     const { search, status, paymentMethod, export: exportType } = req.query;
     const { page, limit, skip, sort } = getPagination(req.query);
-    const filter = {};
+    const filter = { company: req.companyId };
 
     if (status) {
       filter.status = status;
@@ -133,11 +133,11 @@ const getPayments = async (req, res, next) => {
     const [payments, total, paidPayments, totalVehicles, totalTransactions, totalSlots, occupiedSlots] = await Promise.all([
       baseQuery.skip(skip).limit(limit),
       Payment.countDocuments(filter),
-      Payment.find({ status: "paid" }).select("amount"),
-      Vehicle.countDocuments(),
-      Transaction.countDocuments(),
-      ParkingSlot.countDocuments(),
-      ParkingSlot.countDocuments({ status: "occupied" }),
+      Payment.find({ company: req.companyId, status: "paid" }).select("amount"),
+      Vehicle.countDocuments({ company: req.companyId }),
+      Transaction.countDocuments({ company: req.companyId }),
+      ParkingSlot.countDocuments({ company: req.companyId }),
+      ParkingSlot.countDocuments({ company: req.companyId, status: "occupied" }),
     ]);
 
     return res.json({
@@ -161,7 +161,7 @@ const getPayments = async (req, res, next) => {
 
 const getPaymentById = async (req, res, next) => {
   try {
-    const payment = await Payment.findById(req.params.id)
+    const payment = await Payment.findOne({ _id: req.params.id, company: req.companyId })
       .populate("vehicle", "plateNumber ownerName ownerPhone vehicleType status entryTime exitTime")
       .populate("receivedBy", "fullName email phone role");
 
@@ -190,7 +190,8 @@ const markPaymentAsPaid = async (req, res, next) => {
       return validationResponse;
     }
 
-    const payment = await Payment.findById(req.params.id).populate("vehicle", "plateNumber currentSlot");
+    const payment = await Payment.findOne({ _id: req.params.id, company: req.companyId })
+      .populate("vehicle", "plateNumber currentSlot");
 
     if (!payment) {
       return res.status(404).json({
@@ -217,11 +218,13 @@ const markPaymentAsPaid = async (req, res, next) => {
     await payment.save();
 
     const latestCheckoutTransaction = await Transaction.findOne({
+      company: req.companyId,
       vehicle: payment.vehicle?._id || payment.vehicle,
       type: "check_out",
     }).sort({ createdAt: -1 });
 
     await Transaction.create({
+      company: req.companyId,
       transactionCode: generateCode("TRX"),
       vehicle: payment.vehicle?._id || payment.vehicle,
       plateNumber: payment.plateNumber,
@@ -233,7 +236,7 @@ const markPaymentAsPaid = async (req, res, next) => {
       createdBy: req.user._id,
     });
 
-    const updatedPayment = await Payment.findById(payment._id)
+    const updatedPayment = await Payment.findOne({ _id: payment._id, company: req.companyId })
       .populate("vehicle", "plateNumber ownerName vehicleType")
       .populate("receivedBy", "fullName role");
 

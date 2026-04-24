@@ -5,7 +5,7 @@ const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const generateOtp = require("../utils/generateOtp");
 const sendEmail = require("../utils/sendEmail");
-const { ensureSettings, isStrongPassword } = require("../utils/systemHelpers");
+const { ensureSettings, ensureUserCompany, isStrongPassword } = require("../utils/systemHelpers");
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
@@ -29,6 +29,12 @@ const sanitizeUser = (user) => ({
   phone: user.phone,
   role: user.role,
   status: user.status,
+  company: user.company
+    ? {
+      id: user.company._id || user.company,
+      name: user.company.name || null,
+    }
+    : null,
   isEmailVerified: Boolean(user.isEmailVerified),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
@@ -40,12 +46,29 @@ const buildOtpEmail = (otp, fullName) => ({
   subject: "Verify your veraX account",
   text: `Hello ${fullName || "there"}, your veraX verification code is ${otp}. It expires in 10 minutes.`,
   html: `
-    <div style="font-family: Arial, sans-serif; color: #111;">
-      <h2 style="margin-bottom: 12px;">Verify your veraX account</h2>
-      <p>Hello ${fullName || "there"},</p>
-      <p>Your verification code is:</p>
-      <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
-      <p>This code expires in 10 minutes.</p>
+    <div style="background:#ffffff;padding:30px;font-family:Arial,Helvetica,sans-serif;">
+      <div style="max-width:500px;margin:0 auto;border:1px solid #e5e5e5;padding:25px;background:#ffffff;">
+        <h2 style="text-align:center;color:#000000;margin:0 0 24px;padding-bottom:16px;border-bottom:1px solid #e5e5e5;font-size:24px;font-weight:700;">
+          VeraX Parking
+        </h2>
+        <p style="color:#000000;font-size:16px;line-height:1.5;margin:0 0 12px;">
+          Verify your email
+        </p>
+        <p style="color:#333333;font-size:14px;line-height:1.6;margin:0 0 30px;">
+          Use the code below to verify your email address.
+        </p>
+        <div style="margin:30px 0;text-align:center;">
+          <div style="display:inline-block;padding:15px 30px;border:1px solid #000000;font-size:28px;font-weight:bold;letter-spacing:5px;color:#000000;">
+            ${otp}
+          </div>
+        </div>
+        <p style="font-size:12px;line-height:1.6;color:#555555;margin:0 0 8px;">
+          This code expires in 10 minutes.
+        </p>
+        <p style="font-size:12px;line-height:1.6;color:#555555;margin:0;">
+          If you didn't request this, ignore this email.
+        </p>
+      </div>
     </div>
   `,
 });
@@ -73,11 +96,11 @@ const signup = async (req, res, next) => {
       return validationResponse;
     }
 
-    const { fullName, email, phone, password, role } = req.body;
-    const settings = await ensureSettings();
+    const { fullName, email, phone, password, role, companyName } = req.body;
     const normalizedEmail = email.toLowerCase();
+    const normalizedCompanyName = String(companyName || `${fullName}'s Parking`).trim() || `${fullName}'s Parking`;
 
-    if (settings.requireStrongPassword && !isStrongPassword(password)) {
+    if (!isStrongPassword(password)) {
       return res.status(400).json({
         success: false,
         message: "Password must contain uppercase, lowercase, number, special character, and be at least 8 characters long",
@@ -100,10 +123,15 @@ const signup = async (req, res, next) => {
       email: normalizedEmail,
       phone,
       password,
-      role: existingUsersCount === 0 ? (role || "admin") : "attendant",
+      role: existingUsersCount === 0 ? (role || "admin") : (role || "manager"),
     });
     setEmailOtp(user, otp);
     await user.save();
+    await ensureUserCompany(user, { companyName: normalizedCompanyName });
+    await ensureSettings(user.company?._id || user.company, {
+      parkingLotName: normalizedCompanyName,
+    });
+    await user.populate("company", "name owner");
 
     try {
       await deliverOtpEmail(user, otp);
@@ -134,7 +162,9 @@ const login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select("+password")
+      .populate("company", "name owner");
 
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({
@@ -148,6 +178,11 @@ const login = async (req, res, next) => {
         success: false,
         message: "Account is inactive",
       });
+    }
+
+    if (!user.company) {
+      await ensureUserCompany(user);
+      await user.populate("company", "name owner");
     }
 
     if (!user.isEmailVerified) {
@@ -194,7 +229,9 @@ const verifyEmailOtp = async (req, res, next) => {
 
     const { email, otp } = req.body;
     const normalizedEmail = email.toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail }).select("+emailOtp +emailOtpExpires +password");
+    const user = await User.findOne({ email: normalizedEmail })
+      .select("+emailOtp +emailOtpExpires +password")
+      .populate("company", "name owner");
 
     if (!user) {
       return res.status(404).json({
@@ -239,6 +276,10 @@ const verifyEmailOtp = async (req, res, next) => {
     user.emailOtp = undefined;
     user.emailOtpExpires = undefined;
     await user.save();
+    if (!user.company) {
+      await ensureUserCompany(user);
+      await user.populate("company", "name owner");
+    }
 
     return res.json({
       success: true,

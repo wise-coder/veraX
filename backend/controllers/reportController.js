@@ -59,8 +59,8 @@ const getReports = async (req, res, next) => {
     const { parkingSlot, paymentMethod } = req.query;
     const hasFilters = Boolean(req.query.startDate || req.query.endDate || parkingSlot || paymentMethod);
     const dateRange = getDateRange(req.query.startDate, req.query.endDate);
-    const transactionScopeFilter = {};
-    const paymentScopeFilter = { status: "paid" };
+    const transactionScopeFilter = { company: req.companyId };
+    const paymentScopeFilter = { company: req.companyId, status: "paid" };
 
     if (dateRange) {
       transactionScopeFilter.createdAt = dateRange;
@@ -133,12 +133,14 @@ const getReports = async (req, res, next) => {
     ]);
 
     const slotIds = topSlotsAggregation.map((slot) => slot._id).filter(Boolean);
-    const slots = slotIds.length ? await ParkingSlot.find({ _id: { $in: slotIds } }).select("slotNumber") : [];
+    const slots = slotIds.length
+      ? await ParkingSlot.find({ company: req.companyId, _id: { $in: slotIds } }).select("slotNumber")
+      : [];
     const slotMap = new Map(slots.map((slot) => [slot._id.toString(), slot.slotNumber]));
 
     const reportVehicleFilter = Array.isArray(scopedVehicleIds)
-      ? { _id: { $in: scopedVehicleIds } }
-      : {};
+      ? { company: req.companyId, _id: { $in: scopedVehicleIds } }
+      : { company: req.companyId };
 
     const [vehiclesForStatusChart, completedVehicles] = await Promise.all([
       Vehicle.find(reportVehicleFilter).select("status"),
@@ -168,7 +170,7 @@ const getReports = async (req, res, next) => {
         totalRevenue,
         totalVehicles: hasFilters
           ? (Array.isArray(scopedVehicleIds) ? scopedVehicleIds.length : 0)
-          : await Vehicle.countDocuments(),
+          : await Vehicle.countDocuments({ company: req.companyId }),
         totalTransactions,
         averageParkingDuration,
         revenueOverTime: buildRevenueOverTime(paidPayments),

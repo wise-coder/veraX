@@ -1,3 +1,4 @@
+const Company = require("../models/Company");
 const Setting = require("../models/Setting");
 const ParkingSlot = require("../models/ParkingSlot");
 const Vehicle = require("../models/Vehicle");
@@ -83,11 +84,67 @@ const buildPaginationMeta = (page, limit, total) => ({
 
 const isStrongPassword = (value = "") => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(value);
 
-const ensureSettings = async () => {
-  let settings = await Setting.findOne();
+const ensureCompanyId = (companyId) => {
+  if (!companyId) {
+    const error = new Error("Company context is missing");
+    error.statusCode = 400;
+    throw error;
+  }
+};
+
+const syncCompanyParkingSlotCount = async (companyId, targetTotal) => {
+  ensureCompanyId(companyId);
+
+  const slots = await ParkingSlot.find({ company: companyId }).sort({ positionIndex: 1 });
+  const currentTotal = slots.length;
+
+  if (targetTotal === currentTotal) {
+    return;
+  }
+
+  if (targetTotal > currentTotal) {
+    const newSlots = [];
+
+    for (let index = currentTotal + 1; index <= targetTotal; index += 1) {
+      newSlots.push({
+        company: companyId,
+        slotNumber: `P${index}`,
+        positionIndex: index,
+        status: "available",
+      });
+    }
+
+    if (newSlots.length) {
+      await ParkingSlot.insertMany(newSlots);
+    }
+
+    return;
+  }
+
+  const removableSlots = slots.filter((slot) => slot.status === "available").reverse();
+  const slotsToRemoveCount = currentTotal - targetTotal;
+
+  if (removableSlots.length < slotsToRemoveCount) {
+    const error = new Error("Cannot reduce total parking slots because some slots are occupied, reserved, or under maintenance");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const removableIds = removableSlots.slice(0, slotsToRemoveCount).map((slot) => slot._id);
+  await ParkingSlot.deleteMany({ company: companyId, _id: { $in: removableIds } });
+};
+
+const ensureSettings = async (companyId, overrides = {}) => {
+  ensureCompanyId(companyId);
+
+  let settings = await Setting.findOne({ company: companyId });
 
   if (!settings) {
-    settings = await Setting.create(Setting.DEFAULT_SETTINGS);
+    settings = await Setting.create({
+      ...Setting.DEFAULT_SETTINGS,
+      ...overrides,
+      company: companyId,
+    });
     return settings;
   }
 
@@ -100,6 +157,13 @@ const ensureSettings = async () => {
     }
   });
 
+  Object.entries(overrides).forEach(([key, value]) => {
+    if (value !== undefined && settings[key] !== value) {
+      settings[key] = value;
+      changed = true;
+    }
+  });
+
   if (changed) {
     await settings.save();
   }
@@ -107,33 +171,77 @@ const ensureSettings = async () => {
   return settings;
 };
 
-const getDashboardOverviewData = async () => {
+const ensureCompanyResources = async (companyId, options = {}) => {
+  const settings = await ensureSettings(companyId, {
+    parkingLotName: options.parkingLotName || Setting.DEFAULT_SETTINGS.parkingLotName,
+  });
+
+  await syncCompanyParkingSlotCount(companyId, Number(settings.totalParkingSlots || Setting.DEFAULT_SETTINGS.totalParkingSlots));
+
+  return settings;
+};
+
+const ensureUserCompany = async (user, options = {}) => {
+  if (user.company) {
+    await ensureCompanyResources(user.company, options);
+
+    if (typeof user.populate === "function") {
+      await user.populate("company", "name owner");
+    }
+
+    return user.company;
+  }
+
+  const company = await Company.create({
+    name: options.companyName || `${user.fullName}'s Parking`,
+    owner: user._id,
+  });
+
+  user.company = company._id;
+  await user.save();
+  await ensureCompanyResources(company._id, {
+    parkingLotName: company.name,
+  });
+
+  if (typeof user.populate === "function") {
+    await user.populate("company", "name owner");
+  }
+
+  return company;
+};
+
+const getDashboardOverviewData = async (companyId) => {
+  ensureCompanyId(companyId);
+
   const { start, end } = getTodayRange();
 
-  const [slots, recentParkedVehicles, recentTransactions, todayTransactionsCount, paidPaymentsToday, carsCurrentlyParked] = await Promise.all([
-    ParkingSlot.find()
+  const [settings, slots, recentParkedVehicles, recentTransactions, todayTransactionsCount, paidPaymentsToday, carsCurrentlyParked] = await Promise.all([
+    ensureSettings(companyId),
+    ParkingSlot.find({ company: companyId })
       .sort({ positionIndex: 1 })
       .populate({
         path: "currentVehicle",
         select: "plateNumber ownerName ownerPhone vehicleType entryTime status",
       }),
-    Vehicle.find({ status: "parked" })
+    Vehicle.find({ company: companyId, status: "parked" })
       .sort({ entryTime: -1 })
       .limit(5)
       .populate("currentSlot", "slotNumber"),
-    Transaction.find()
+    Transaction.find({ company: companyId })
       .sort({ createdAt: -1 })
       .limit(5)
       .populate("parkingSlot", "slotNumber")
       .populate("createdBy", "fullName role"),
     Transaction.countDocuments({
+      company: companyId,
       createdAt: { $gte: start, $lte: end },
     }),
     Payment.find({
+      company: companyId,
       status: "paid",
       paidAt: { $gte: start, $lte: end },
     }),
-    Vehicle.countDocuments({ status: "parked" }),
+    Vehicle.countDocuments({ company: companyId, status: "parked" }),
   ]);
 
   const totalSlots = slots.length;
@@ -154,6 +262,7 @@ const getDashboardOverviewData = async () => {
     todayRevenue,
     totalTransactionsToday: todayTransactionsCount,
     occupancyRate,
+    settings,
     recentParkedVehicles: recentParkedVehicles.map((vehicle) => ({
       id: vehicle._id,
       plateNumber: vehicle.plateNumber,
@@ -193,12 +302,15 @@ module.exports = {
   buildPaginationMeta,
   buildRegex,
   buildSearchQuery,
+  ensureCompanyResources,
   ensureSettings,
+  ensureUserCompany,
   generateCode,
   getDashboardOverviewData,
   getDateRange,
   getPagination,
   getTodayRange,
   isStrongPassword,
+  syncCompanyParkingSlotCount,
   toCsv,
 };

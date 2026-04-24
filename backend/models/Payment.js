@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
 
 const paymentSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
   paymentCode: {
     type: String,
     required: true,
@@ -46,7 +52,7 @@ const paymentSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-paymentSchema.index({ plateNumber: 1, status: 1, createdAt: -1 });
-paymentSchema.index({ paymentMethod: 1, status: 1, paidAt: -1 });
+paymentSchema.index({ company: 1, plateNumber: 1, status: 1, createdAt: -1 });
+paymentSchema.index({ company: 1, paymentMethod: 1, status: 1, paidAt: -1 });
 
 module.exports = mongoose.model("Payment", paymentSchema);

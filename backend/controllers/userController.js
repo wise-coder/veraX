@@ -28,6 +28,12 @@ const sanitizeUser = (user) => ({
   phone: user.phone,
   role: user.role,
   status: user.status,
+  company: user.company
+    ? {
+      id: user.company._id || user.company,
+      name: user.company.name || null,
+    }
+    : null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -37,7 +43,7 @@ const getUsers = async (req, res, next) => {
     const { search, status, role } = req.query;
     const { page, limit, skip, sort } = getPagination(req.query);
     const searchFilter = buildSearchQuery(search, ["fullName", "email", "phone", "role"]);
-    const filter = { ...searchFilter };
+    const filter = { ...searchFilter, company: req.companyId };
 
     if (status) {
       filter.status = status;
@@ -48,7 +54,7 @@ const getUsers = async (req, res, next) => {
     }
 
     const [users, total] = await Promise.all([
-      User.find(filter).sort(sort).skip(skip).limit(limit),
+      User.find(filter).populate("company", "name").sort(sort).skip(skip).limit(limit),
       User.countDocuments(filter),
     ]);
 
@@ -74,7 +80,7 @@ const createUser = async (req, res, next) => {
     }
 
     const { fullName, email, phone, password, role, status } = req.body;
-    const settings = await ensureSettings();
+    const settings = await ensureSettings(req.companyId);
     const normalizedEmail = email.toLowerCase();
     const existingUser = await User.findOne({ email: normalizedEmail });
 
@@ -97,6 +103,7 @@ const createUser = async (req, res, next) => {
       email: normalizedEmail,
       phone,
       password,
+      company: req.companyId,
       role: role || "attendant",
       status: status || "active",
     });
@@ -113,7 +120,7 @@ const createUser = async (req, res, next) => {
 
 const getUserById = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ _id: req.params.id, company: req.companyId }).populate("company", "name");
 
     if (!user) {
       return res.status(404).json({
@@ -140,8 +147,10 @@ const updateUser = async (req, res, next) => {
       return validationResponse;
     }
 
-    const settings = await ensureSettings();
-    const user = await User.findById(req.params.id).select("+password");
+    const settings = await ensureSettings(req.companyId);
+    const user = await User.findOne({ _id: req.params.id, company: req.companyId })
+      .select("+password")
+      .populate("company", "name");
 
     if (!user) {
       return res.status(404).json({
@@ -164,7 +173,7 @@ const updateUser = async (req, res, next) => {
     }
 
     if (req.body.role && user.role === "admin" && req.body.role !== "admin") {
-      const adminCount = await User.countDocuments({ role: "admin" });
+      const adminCount = await User.countDocuments({ company: req.companyId, role: "admin" });
 
       if (adminCount === 1) {
         return res.status(400).json({
@@ -175,7 +184,7 @@ const updateUser = async (req, res, next) => {
     }
 
     if (req.body.status === "inactive" && user.role === "admin") {
-      const activeAdminCount = await User.countDocuments({ role: "admin", status: "active" });
+      const activeAdminCount = await User.countDocuments({ company: req.companyId, role: "admin", status: "active" });
 
       if (activeAdminCount === 1) {
         return res.status(400).json({
@@ -215,7 +224,7 @@ const updateUser = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ _id: req.params.id, company: req.companyId }).populate("company", "name");
 
     if (!user) {
       return res.status(404).json({
@@ -225,7 +234,7 @@ const deleteUser = async (req, res, next) => {
     }
 
     if (user.role === "admin") {
-      const adminCount = await User.countDocuments({ role: "admin" });
+      const adminCount = await User.countDocuments({ company: req.companyId, role: "admin" });
 
       if (adminCount === 1) {
         return res.status(400).json({

@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
 
 const vehicleSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
   plateNumber: {
     type: String,
     required: true,
@@ -52,6 +58,7 @@ const vehicleSchema = new mongoose.Schema({
 
 vehicleSchema.index({ ownerName: 1 });
 vehicleSchema.index({ ownerPhone: 1 });
-vehicleSchema.index({ status: 1, entryTime: -1 });
+vehicleSchema.index({ company: 1, plateNumber: 1, status: 1 });
+vehicleSchema.index({ company: 1, status: 1, entryTime: -1 });
 
 module.exports = mongoose.model("Vehicle", vehicleSchema);

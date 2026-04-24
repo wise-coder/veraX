@@ -1,7 +1,6 @@
 const { validationResult } = require("express-validator");
-const ParkingSlot = require("../models/ParkingSlot");
 const Setting = require("../models/Setting");
-const { ensureSettings } = require("../utils/systemHelpers");
+const { ensureSettings, syncCompanyParkingSlotCount } = require("../utils/systemHelpers");
 
 const validationErrorResponse = (req, res) => {
   const errors = validationResult(req);
@@ -16,48 +15,9 @@ const validationErrorResponse = (req, res) => {
   });
 };
 
-const syncParkingSlotCount = async (targetTotal) => {
-  const slots = await ParkingSlot.find().sort({ positionIndex: 1 });
-  const currentTotal = slots.length;
-
-  if (targetTotal === currentTotal) {
-    return;
-  }
-
-  if (targetTotal > currentTotal) {
-    const newSlots = [];
-
-    for (let index = currentTotal + 1; index <= targetTotal; index += 1) {
-      newSlots.push({
-        slotNumber: `P${index}`,
-        positionIndex: index,
-        status: "available",
-      });
-    }
-
-    if (newSlots.length) {
-      await ParkingSlot.insertMany(newSlots);
-    }
-
-    return;
-  }
-
-  const removableSlots = slots.filter((slot) => slot.status === "available").reverse();
-  const slotsToRemoveCount = currentTotal - targetTotal;
-
-  if (removableSlots.length < slotsToRemoveCount) {
-    const error = new Error("Cannot reduce total parking slots because some slots are occupied, reserved, or under maintenance");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const removableIds = removableSlots.slice(0, slotsToRemoveCount).map((slot) => slot._id);
-  await ParkingSlot.deleteMany({ _id: { $in: removableIds } });
-};
-
-const getSettings = async (_req, res, next) => {
+const getSettings = async (req, res, next) => {
   try {
-    const settings = await ensureSettings();
+    const settings = await ensureSettings(req.companyId);
 
     return res.json({
       success: true,
@@ -77,7 +37,7 @@ const updateSettings = async (req, res, next) => {
       return validationResponse;
     }
 
-    const settings = await ensureSettings();
+    const settings = await ensureSettings(req.companyId);
     const updates = req.body;
 
     if (updates.totalParkingSlots !== undefined && Number(updates.totalParkingSlots) < 1) {
@@ -108,7 +68,7 @@ const updateSettings = async (req, res, next) => {
     });
 
     if (updates.totalParkingSlots !== undefined) {
-      await syncParkingSlotCount(Number(updates.totalParkingSlots));
+      await syncCompanyParkingSlotCount(req.companyId, Number(updates.totalParkingSlots));
     }
 
     await settings.save();
@@ -123,19 +83,22 @@ const updateSettings = async (req, res, next) => {
   }
 };
 
-const resetSettings = async (_req, res, next) => {
+const resetSettings = async (req, res, next) => {
   try {
-    let settings = await Setting.findOne();
+    let settings = await Setting.findOne({ company: req.companyId });
 
     if (!settings) {
-      settings = await Setting.create(Setting.DEFAULT_SETTINGS);
+      settings = await Setting.create({
+        ...Setting.DEFAULT_SETTINGS,
+        company: req.companyId,
+      });
     }
 
     Object.entries(Setting.DEFAULT_SETTINGS).forEach(([key, value]) => {
       settings[key] = value;
     });
 
-    await syncParkingSlotCount(Setting.DEFAULT_SETTINGS.totalParkingSlots);
+    await syncCompanyParkingSlotCount(req.companyId, Setting.DEFAULT_SETTINGS.totalParkingSlots);
     await settings.save();
 
     return res.json({

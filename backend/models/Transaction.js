@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
 
 const transactionSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
   transactionCode: {
     type: String,
     required: true,
@@ -50,7 +56,7 @@ const transactionSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-transactionSchema.index({ plateNumber: 1, createdAt: -1 });
-transactionSchema.index({ type: 1, status: 1, createdAt: -1 });
+transactionSchema.index({ company: 1, plateNumber: 1, createdAt: -1 });
+transactionSchema.index({ company: 1, type: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Transaction", transactionSchema);

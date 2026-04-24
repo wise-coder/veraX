@@ -44,7 +44,7 @@ const getTransactions = async (req, res, next) => {
     const { search, status, type, export: exportType, parkingSlot } = req.query;
     const { page, limit, skip, sort } = getPagination(req.query);
     const dateRange = getDateRange(req.query.startDate, req.query.endDate);
-    const filter = {};
+    const filter = { company: req.companyId };
 
     if (status) {
       filter.status = status;
@@ -64,7 +64,7 @@ const getTransactions = async (req, res, next) => {
 
     if (search) {
       const regex = buildRegex(search);
-      const slotIds = await ParkingSlot.find({ slotNumber: regex }).distinct("_id");
+      const slotIds = await ParkingSlot.find({ company: req.companyId, slotNumber: regex }).distinct("_id");
       filter.$or = [
         { transactionCode: regex },
         { plateNumber: regex },
@@ -144,7 +144,7 @@ const getTransactions = async (req, res, next) => {
 
 const getTransactionById = async (req, res, next) => {
   try {
-    const transaction = await Transaction.findById(req.params.id)
+    const transaction = await Transaction.findOne({ _id: req.params.id, company: req.companyId })
       .populate("parkingSlot", "slotNumber status positionIndex")
       .populate("createdBy", "fullName email phone role")
       .populate("vehicle", "plateNumber ownerName ownerPhone vehicleType status entryTime exitTime");

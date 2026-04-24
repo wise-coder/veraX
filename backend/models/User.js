@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema({
     enum: ["admin", "manager", "attendant", "cashier"],
     default: "attendant",
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    default: null,
+  },
   status: {
     type: String,
     enum: ["active", "inactive"],

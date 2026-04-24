@@ -1,6 +1,9 @@
-MongoDB connected: 127.0.0.1
-Server running on port 5000
-[0mGET / [32m200[0m 5.809 ms - 86[0m
-[0mPOST /api/auth/login [33m403[0m 374.374 ms - 125[0m
-[0mPOST /api/auth/resend-email-otp [31m500[0m 2190.131 ms - 82[0m
-[0mPOST /api/auth/resend-email-otp [31m500[0m 1839.167 ms - 82[0m
+
+> parking-management-backend@1.0.0 dev
+> nodemon server.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node server.js`[39m

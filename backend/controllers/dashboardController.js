@@ -1,8 +1,8 @@
 const { getDashboardOverviewData } = require("../utils/systemHelpers");
 
-const getDashboardOverview = async (_req, res, next) => {
+const getDashboardOverview = async (req, res, next) => {
   try {
-    const overview = await getDashboardOverviewData();
+    const overview = await getDashboardOverviewData(req.companyId);
 
     return res.json({
       success: true,

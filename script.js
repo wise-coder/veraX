@@ -491,7 +491,8 @@ const updateAdminLabels = (user) => {
     }
 
     if (role) {
-      role.textContent = displayUser?.role ? displayUser.role.charAt(0).toUpperCase() + displayUser.role.slice(1) : "Staff";
+      const formattedRole = displayUser?.role ? displayUser.role.charAt(0).toUpperCase() + displayUser.role.slice(1) : "Staff";
+      role.textContent = displayUser?.company?.name ? `${formattedRole} • ${displayUser.company.name}` : formattedRole;
     }
 
     if (avatar) {
@@ -1305,10 +1306,10 @@ const ensureVehicleModal = () => {
   const hint = modalElement.querySelector("#vehicleActionHint");
   let submitHandler = null;
 
-  if (!form.dataset.bound) {
-    form.dataset.bound = "true";
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    if (!form.dataset.bound) {
+      form.dataset.bound = "true";
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
 
       if (!submitHandler) {
         return;
@@ -2508,27 +2509,53 @@ const ensureUserModal = () => {
       const originalText = submitButton.textContent;
       submitButton.textContent = "Saving...";
 
-      try {
-        const formData = new FormData(form);
-        const payload = {
-          fullName: String(formData.get("fullName") || "").trim(),
-          email: String(formData.get("email") || "").trim(),
-          phone: String(formData.get("phone") || "").trim(),
-          role: String(formData.get("role") || "attendant"),
-          status: String(formData.get("status") || "active"),
-        };
-        const password = String(formData.get("password") || "").trim();
+        try {
+          const formData = new FormData(form);
+          const payload = {
+            fullName: String(formData.get("fullName") || "").trim(),
+            email: String(formData.get("email") || "").trim(),
+            phone: String(formData.get("phone") || "").trim(),
+            role: String(formData.get("role") || "").trim(),
+            status: String(formData.get("status") || "").trim(),
+          };
+          const password = String(formData.get("password") || "").trim();
 
-        if (password) {
-          payload.password = password;
+          if (!payload.fullName) {
+            throw new Error("Full name is required");
+          }
+
+          if (!payload.email) {
+            throw new Error("Email is required");
+          }
+
+          if (!payload.phone) {
+            throw new Error("Phone is required");
+          }
+
+          if (!payload.role) {
+            throw new Error("Role is required");
+          }
+
+          if (!payload.status) {
+            throw new Error("Status is required");
+          }
+
+          if (passwordInput.required && !password) {
+            throw new Error("Password is required");
+          }
+
+          if (password) {
+            payload.password = password;
+          }
+
+          await submitHandler(payload);
+        } catch (error) {
+          showAlert(error.message || "Failed to save user.", "danger");
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = originalText;
         }
-
-        await submitHandler(payload);
-      } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = originalText;
-      }
-    });
+      });
   }
 
   return {
@@ -2690,22 +2717,24 @@ const initializeUsersPage = () => {
     loadUsers();
   });
 
-  document.getElementById("addUserButton")?.addEventListener("click", () => {
-    userModal.open({
-      modalTitle: "Add New User",
-      submitText: "Create User",
-      passwordRequired: true,
-      onSubmit: async (payload) => {
-        await apiRequest("/users", {
-          method: "POST",
-          body: payload,
-        });
-        showAlert("User created successfully");
-        userModal.close();
-        await loadUsers();
-      },
+    document.getElementById("addUserButton")?.addEventListener("click", () => {
+      userModal.open({
+        modalTitle: "Add New User",
+        submitText: "Create User",
+        passwordRequired: true,
+        onSubmit: async (payload) => {
+          await apiRequest("/users", {
+            method: "POST",
+            body: payload,
+          });
+          showAlert("User created successfully");
+          document.getElementById("userActionForm")?.reset();
+          userModal.close();
+          await loadUsers();
+          window.dispatchEvent(new Event("app:dataUpdated"));
+        },
+      });
     });
-  });
 
   loadUsers();
 };
@@ -3301,6 +3330,7 @@ const initializeAuthPages = () => {
             email: document.getElementById("signupEmail")?.value.trim(),
             phone: document.getElementById("signupPhone")?.value.trim(),
             password: document.getElementById("signupPassword")?.value,
+            companyName: document.getElementById("parkingLotName")?.value.trim(),
             role: document.getElementById("signupRole")?.value || "attendant",
           },
         });
