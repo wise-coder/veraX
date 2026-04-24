@@ -35,6 +35,18 @@ const userSchema = new mongoose.Schema({
     enum: ["active", "inactive"],
     default: "active",
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailOtp: {
+    type: String,
+    select: false,
+  },
+  emailOtpExpires: {
+    type: Date,
+    select: false,
+  },
 }, {
   timestamps: true,
 });

@@ -1,7 +1,13 @@
 const express = require("express");
 const { body } = require("express-validator");
 
-const { getMe, login, signup } = require("../controllers/authController");
+const {
+  getMe,
+  login,
+  signup,
+  verifyEmailOtp,
+  resendEmailOtp,
+} = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -25,6 +31,26 @@ router.post(
     body("password").notEmpty().withMessage("Password is required"),
   ],
   login,
+);
+
+router.post(
+  "/verify-email-otp",
+  [
+    body("email").trim().isEmail().withMessage("Valid email is required"),
+    body("otp")
+      .trim()
+      .matches(/^\d{6}$/)
+      .withMessage("OTP must be a 6-digit code"),
+  ],
+  verifyEmailOtp,
+);
+
+router.post(
+  "/resend-email-otp",
+  [
+    body("email").trim().isEmail().withMessage("Valid email is required"),
+  ],
+  resendEmailOtp,
 );
 
 router.get("/me", protect, getMe);

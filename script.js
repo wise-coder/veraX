@@ -3,6 +3,7 @@ const themeToggle = document.querySelector("[data-theme-toggle]");
 const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
+const PENDING_OTP_EMAIL_KEY = "pendingSignupOtpEmail";
 const PROFILE_PREFS_KEY = "profilePrefs";
 const NOTIFICATION_KEY = "veraxNotifications";
 const SETTINGS_CACHE_KEY = "veraxSettings";
@@ -352,6 +353,30 @@ const clearAuthSession = () => {
   pageState.currentUser = null;
 };
 
+const getPendingOtpEmail = () => {
+  try {
+    return localStorage.getItem(PENDING_OTP_EMAIL_KEY) || "";
+  } catch {
+    return "";
+  }
+};
+
+const setPendingOtpEmail = (email) => {
+  try {
+    localStorage.setItem(PENDING_OTP_EMAIL_KEY, String(email || "").trim().toLowerCase());
+  } catch {
+    // Ignore storage errors.
+  }
+};
+
+const clearPendingOtpEmail = () => {
+  try {
+    localStorage.removeItem(PENDING_OTP_EMAIL_KEY);
+  } catch {
+    // Ignore storage errors.
+  }
+};
+
 const redirectToLogin = () => {
   clearAuthSession();
   window.location.href = "login.html";
@@ -420,7 +445,14 @@ const apiRequest = async (endpoint, options = {}) => {
       redirectToLogin();
     }
 
-    throw new Error(message);
+    const requestError = new Error(message);
+    requestError.status = response.status;
+
+    if (payload && typeof payload === "object") {
+      Object.assign(requestError, payload);
+    }
+
+    throw requestError;
   }
 
   return payload;
@@ -3097,6 +3129,122 @@ const initializeSettingsPage = async () => {
 const initializeAuthPages = () => {
   const loginForm = document.getElementById("loginForm");
   const signupForm = document.getElementById("signupForm");
+  const otpSection = document.getElementById("signupOtpSection");
+  const otpInput = document.getElementById("signupOtpCode");
+  const otpMessage = document.getElementById("signupOtpMessage");
+  const verifyOtpButton = document.getElementById("verifySignupOtpButton");
+  const resendOtpButton = document.getElementById("resendSignupOtpButton");
+  const signupEmailInput = document.getElementById("signupEmail");
+
+  const showSignupOtpSection = (email, options = {}) => {
+    const {
+      disableSignupFields = false,
+      message = "We sent a verification code to your email.",
+    } = options;
+
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+
+    if (!otpSection || !otpInput || !normalizedEmail) {
+      return;
+    }
+
+    setPendingOtpEmail(normalizedEmail);
+    otpSection.classList.remove("d-none");
+    otpMessage.textContent = `${message} ${normalizedEmail}`;
+    otpInput.value = "";
+
+    if (signupEmailInput) {
+      signupEmailInput.value = normalizedEmail;
+    }
+
+    if (signupForm && disableSignupFields) {
+      signupForm.querySelectorAll("input, select, button").forEach((element) => {
+        element.disabled = true;
+      });
+    }
+  };
+
+  const verifySignupOtp = async () => {
+    const pendingEmail = getPendingOtpEmail() || signupEmailInput?.value.trim().toLowerCase();
+
+    if (!pendingEmail) {
+      showAlert("Please sign up first so we know which email to verify.", "danger");
+      return;
+    }
+
+    if (!otpInput?.value.trim()) {
+      showAlert("Please enter the 6-digit OTP code.", "danger");
+      return;
+    }
+
+    if (verifyOtpButton) {
+      verifyOtpButton.disabled = true;
+      verifyOtpButton.textContent = "Verifying...";
+    }
+
+    try {
+      const response = await apiRequest("/auth/verify-email-otp", {
+        auth: false,
+        method: "POST",
+        body: {
+          email: pendingEmail,
+          otp: otpInput.value.trim(),
+        },
+      });
+
+      clearPendingOtpEmail();
+      showAlert(response.message || "Email verified successfully");
+
+      if (response.data?.token && response.data?.user) {
+        setAuthSession(response.data.token, response.data.user);
+        window.location.href = "dashboard.html";
+        return;
+      }
+
+      window.location.href = "login.html";
+    } catch (error) {
+      showAlert(error.message, "danger");
+    } finally {
+      if (verifyOtpButton) {
+        verifyOtpButton.disabled = false;
+        verifyOtpButton.textContent = "Verify OTP";
+      }
+    }
+  };
+
+  const resendSignupOtp = async () => {
+    const pendingEmail = getPendingOtpEmail() || signupEmailInput?.value.trim().toLowerCase();
+
+    if (!pendingEmail) {
+      showAlert("Please enter your signup email first.", "danger");
+      return;
+    }
+
+    if (resendOtpButton) {
+      resendOtpButton.disabled = true;
+      resendOtpButton.textContent = "Sending...";
+    }
+
+    try {
+      const response = await apiRequest("/auth/resend-email-otp", {
+        auth: false,
+        method: "POST",
+        body: {
+          email: pendingEmail,
+        },
+      });
+
+      setPendingOtpEmail(pendingEmail);
+      showAlert(response.message || "A new verification code has been sent.");
+    } catch (error) {
+      showAlert(error.message, "danger");
+    } finally {
+      if (resendOtpButton) {
+        resendOtpButton.disabled = false;
+        resendOtpButton.textContent = "Resend OTP";
+      }
+    }
+  };
 
   if (loginForm) {
     loginForm.addEventListener("submit", async (event) => {
@@ -3120,6 +3268,13 @@ const initializeAuthPages = () => {
         setAuthSession(response.data.token, response.data.user);
         window.location.href = "dashboard.html";
       } catch (error) {
+        if (error.requiresOtp && error.email) {
+          setPendingOtpEmail(error.email);
+          showAlert(error.message, "danger");
+          window.location.href = `signup.html?verifyEmail=${encodeURIComponent(error.email)}`;
+          return;
+        }
+
         showAlert(error.message, "danger");
       } finally {
         submitButton.disabled = false;
@@ -3150,9 +3305,11 @@ const initializeAuthPages = () => {
           },
         });
 
-        setAuthSession(response.data.token, response.data.user);
-        showAlert("Account created successfully");
-        window.location.href = "dashboard.html";
+        showSignupOtpSection(response.data?.email || document.getElementById("signupEmail")?.value.trim(), {
+          disableSignupFields: true,
+          message: "We sent a verification code to your email.",
+        });
+        showAlert(response.message || "Signup successful. Please verify your email.");
       } catch (error) {
         showAlert(error.message, "danger");
       } finally {
@@ -3160,6 +3317,38 @@ const initializeAuthPages = () => {
         submitButton.textContent = originalText;
       }
     });
+  }
+
+  if (verifyOtpButton) {
+    verifyOtpButton.addEventListener("click", verifySignupOtp);
+  }
+
+  if (resendOtpButton) {
+    resendOtpButton.addEventListener("click", resendSignupOtp);
+  }
+
+  otpInput?.addEventListener("input", () => {
+    otpInput.value = otpInput.value.replace(/\D/g, "").slice(0, 6);
+  });
+
+  otpInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      verifySignupOtp();
+    }
+  });
+
+  if (otpSection) {
+    const params = new URLSearchParams(window.location.search);
+    const emailFromQuery = params.get("verifyEmail");
+    const pendingEmail = emailFromQuery || getPendingOtpEmail();
+
+    if (pendingEmail) {
+      showSignupOtpSection(pendingEmail, {
+        disableSignupFields: false,
+        message: "We sent a verification code to your email.",
+      });
+    }
   }
 };
 

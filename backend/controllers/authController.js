@@ -1,7 +1,13 @@
 const { validationResult } = require("express-validator");
+const crypto = require("crypto");
+
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
+const generateOtp = require("../utils/generateOtp");
+const sendEmail = require("../utils/sendEmail");
 const { ensureSettings, isStrongPassword } = require("../utils/systemHelpers");
+
+const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
 const validationErrorResponse = (req, res) => {
   const errors = validationResult(req);
@@ -23,9 +29,41 @@ const sanitizeUser = (user) => ({
   phone: user.phone,
   role: user.role,
   status: user.status,
+  isEmailVerified: Boolean(user.isEmailVerified),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
+
+const hashOtp = (otp) => crypto.createHash("sha256").update(String(otp)).digest("hex");
+
+const buildOtpEmail = (otp, fullName) => ({
+  subject: "Verify your veraX account",
+  text: `Hello ${fullName || "there"}, your veraX verification code is ${otp}. It expires in 10 minutes.`,
+  html: `
+    <div style="font-family: Arial, sans-serif; color: #111;">
+      <h2 style="margin-bottom: 12px;">Verify your veraX account</h2>
+      <p>Hello ${fullName || "there"},</p>
+      <p>Your verification code is:</p>
+      <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${otp}</p>
+      <p>This code expires in 10 minutes.</p>
+    </div>
+  `,
+});
+
+const setEmailOtp = (user, otp) => {
+  user.emailOtp = hashOtp(otp);
+  user.emailOtpExpires = new Date(Date.now() + OTP_EXPIRY_MS);
+  user.isEmailVerified = false;
+};
+
+const deliverOtpEmail = async (user, otp) => {
+  const emailContent = buildOtpEmail(otp, user.fullName);
+
+  await sendEmail({
+    to: user.email,
+    ...emailContent,
+  });
+};
 
 const signup = async (req, res, next) => {
   try {
@@ -56,22 +94,30 @@ const signup = async (req, res, next) => {
     }
 
     const existingUsersCount = await User.countDocuments();
-    const user = await User.create({
+    const otp = generateOtp();
+    const user = new User({
       fullName,
       email: normalizedEmail,
       phone,
       password,
       role: existingUsersCount === 0 ? (role || "admin") : "attendant",
     });
+    setEmailOtp(user, otp);
+    await user.save();
 
-    const safeUser = sanitizeUser(user);
+    try {
+      await deliverOtpEmail(user, otp);
+    } catch (emailError) {
+      await User.deleteOne({ _id: user._id });
+      throw emailError;
+    }
 
     return res.status(201).json({
       success: true,
-      message: "Signup successful",
+      message: "Signup successful. Please verify your email with the OTP sent.",
       data: {
-        token: generateToken(user),
-        user: safeUser,
+        email: user.email,
+        requiresOtp: true,
       },
     });
   } catch (error) {
@@ -104,6 +150,15 @@ const login = async (req, res, next) => {
       });
     }
 
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in.",
+        requiresOtp: true,
+        email: user.email,
+      });
+    }
+
     return res.json({
       success: true,
       message: "Login successful",
@@ -129,8 +184,123 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const verifyEmailOtp = async (req, res, next) => {
+  try {
+    const validationResponse = validationErrorResponse(req, res);
+
+    if (validationResponse) {
+      return validationResponse;
+    }
+
+    const { email, otp } = req.body;
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select("+emailOtp +emailOtpExpires +password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: "Email already verified",
+        data: {
+          user: sanitizeUser(user),
+          token: generateToken(user),
+        },
+      });
+    }
+
+    if (!user.emailOtp || !user.emailOtpExpires) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is missing. Please request a new verification code.",
+      });
+    }
+
+    if (user.emailOtpExpires.getTime() < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired. Please request a new verification code.",
+      });
+    }
+
+    if (user.emailOtp !== hashOtp(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP code",
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailOtp = undefined;
+    user.emailOtpExpires = undefined;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Email verified successfully",
+      data: {
+        user: sanitizeUser(user),
+        token: generateToken(user),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resendEmailOtp = async (req, res, next) => {
+  try {
+    const validationResponse = validationErrorResponse(req, res);
+
+    if (validationResponse) {
+      return validationResponse;
+    }
+
+    const { email } = req.body;
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select("+emailOtp +emailOtpExpires");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: "Email is already verified",
+      });
+    }
+
+    const otp = generateOtp();
+    setEmailOtp(user, otp);
+    await user.save();
+    await deliverOtpEmail(user, otp);
+
+    return res.json({
+      success: true,
+      message: "A new verification code has been sent to your email.",
+      data: {
+        email: user.email,
+        requiresOtp: true,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   signup,
   login,
   getMe,
+  verifyEmailOtp,
+  resendEmailOtp,
 };

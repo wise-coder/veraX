@@ -95,6 +95,22 @@
                 <button type="submit" class="btn btn-dark btn-lg">Create Account</button>
               </div>
             </form>
+            <div class="row g-3 mt-1 d-none" id="signupOtpSection">
+              <div class="col-12">
+                <p class="auth-switch mt-0 mb-1"><strong>Email Verification</strong></p>
+                <p class="auth-switch mt-0 mb-0" id="signupOtpMessage">We sent a verification code to your email.</p>
+              </div>
+              <div class="col-12">
+                <label for="signupOtpCode" class="form-label">Verification code</label>
+                <input type="text" class="form-control form-control-lg" id="signupOtpCode" placeholder="Enter 6-digit OTP" inputmode="numeric" maxlength="6">
+              </div>
+              <div class="col-md-6 d-grid">
+                <button type="button" class="btn btn-dark btn-lg" id="verifySignupOtpButton">Verify OTP</button>
+              </div>
+              <div class="col-md-6 d-grid">
+                <button type="button" class="btn btn-outline-dark btn-lg" id="resendSignupOtpButton">Resend OTP</button>
+              </div>
+            </div>
             <p class="auth-switch">Already have an account? <a href="login.html">Sign in here</a></p>
             <p class="auth-switch mb-0">Or jump straight to the <a href="dashboard.html">dashboard preview</a>.</p>
           </div>
