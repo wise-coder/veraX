@@ -47,6 +47,14 @@ const vehicleSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  durationInMinutes: {
+    type: Number,
+    default: 0,
+  },
+  amountToPay: {
+    type: Number,
+    default: 0,
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",

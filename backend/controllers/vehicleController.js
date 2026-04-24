@@ -54,6 +54,8 @@ const serializeVehicle = (vehicle) => ({
     : null,
   entryTime: vehicle.entryTime,
   exitTime: vehicle.exitTime,
+  durationInMinutes: Number(vehicle.durationInMinutes || 0),
+  amountToPay: Number(vehicle.amountToPay || 0),
   createdBy: vehicle.createdBy
     ? {
       id: vehicle.createdBy._id || vehicle.createdBy,
@@ -94,6 +96,7 @@ const serializeTransaction = (transaction) => ({
   plateNumber: transaction.plateNumber,
   type: transaction.type,
   amount: transaction.amount,
+  durationInMinutes: Number(transaction.durationInMinutes || 0),
   status: transaction.status,
   description: transaction.description,
   parkingSlot: transaction.parkingSlot
@@ -117,6 +120,8 @@ const serializePayment = (payment) => ({
   paymentCode: payment.paymentCode,
   plateNumber: payment.plateNumber,
   amount: payment.amount,
+  durationInMinutes: Number(payment.durationInMinutes || 0),
+  amountToPay: Number(payment.amountToPay || payment.amount || 0),
   paymentMethod: payment.paymentMethod,
   status: payment.status,
   paidAt: payment.paidAt,
@@ -484,21 +489,24 @@ const checkOutVehicle = async (req, res, next) => {
       });
     }
 
-    const settings = await ensureSettings(req.companyId);
-    const now = new Date();
-    const slotId = vehicle.currentSlot?._id || vehicle.currentSlot;
-    const slot = slotId ? await ParkingSlot.findOne({ _id: slotId, company: req.companyId }) : null;
-    const feeDetails = calculateParkingFee({
-      entryTime: vehicle.entryTime,
-      exitTime: now,
-      vehicleType: vehicle.vehicleType,
-      settings,
-    });
+      const settings = await ensureSettings(req.companyId);
+      const exitTime = new Date();
+      const slotId = vehicle.currentSlot?._id || vehicle.currentSlot;
+      const slot = slotId ? await ParkingSlot.findOne({ _id: slotId, company: req.companyId }) : null;
+      const feeDetails = calculateParkingFee({
+        entryTime: vehicle.entryTime,
+        exitTime,
+        settings,
+      });
+      const durationInMinutes = Number(feeDetails.durationInMinutes || 0);
+      const amountToPay = Number(feeDetails.amountToPay || feeDetails.amount || 0);
 
-    vehicle.exitTime = now;
-    vehicle.status = "checked_out";
-    vehicle.currentSlot = null;
-    await vehicle.save();
+      vehicle.exitTime = exitTime;
+      vehicle.durationInMinutes = durationInMinutes;
+      vehicle.amountToPay = amountToPay;
+      vehicle.status = "checked_out";
+      vehicle.currentSlot = null;
+      await vehicle.save();
 
     if (slot) {
       slot.status = "available";
@@ -509,28 +517,31 @@ const checkOutVehicle = async (req, res, next) => {
     const transaction = await Transaction.create({
       company: req.companyId,
       transactionCode: generateCode("TRX"),
-      vehicle: vehicle._id,
-      plateNumber: vehicle.plateNumber,
-      type: "check_out",
-      parkingSlot: slot ? slot._id : null,
-      amount: feeDetails.amount,
-      status: "completed",
-      description: `Vehicle ${vehicle.plateNumber} checked out after ${feeDetails.durationHours} hours`,
-      createdBy: req.user._id,
-    });
+        vehicle: vehicle._id,
+        plateNumber: vehicle.plateNumber,
+        type: "check_out",
+        parkingSlot: slot ? slot._id : null,
+        amount: amountToPay,
+        durationInMinutes,
+        status: "completed",
+        description: `Vehicle ${vehicle.plateNumber} checked out after ${durationInMinutes} minutes`,
+        createdBy: req.user._id,
+      });
 
     const paymentStatus = req.body.markAsPaid || req.body.status === "paid" ? "paid" : "pending";
     const payment = await Payment.create({
       company: req.companyId,
-      paymentCode: generateCode("PAY"),
-      vehicle: vehicle._id,
-      plateNumber: vehicle.plateNumber,
-      amount: feeDetails.amount,
-      paymentMethod: req.body.paymentMethod || "cash",
-      status: paymentStatus,
-      paidAt: paymentStatus === "paid" ? now : null,
-      receivedBy: paymentStatus === "paid" ? req.user._id : null,
-    });
+        paymentCode: generateCode("PAY"),
+        vehicle: vehicle._id,
+        plateNumber: vehicle.plateNumber,
+        amount: amountToPay,
+        durationInMinutes,
+        amountToPay,
+        paymentMethod: req.body.paymentMethod || "cash",
+        status: paymentStatus,
+        paidAt: paymentStatus === "paid" ? exitTime : null,
+        receivedBy: paymentStatus === "paid" ? req.user._id : null,
+      });
 
     if (payment.status === "paid") {
       await Transaction.create({
@@ -538,12 +549,13 @@ const checkOutVehicle = async (req, res, next) => {
         transactionCode: generateCode("TRX"),
         vehicle: vehicle._id,
         plateNumber: vehicle.plateNumber,
-        type: "payment",
-        parkingSlot: slot ? slot._id : null,
-        amount: payment.amount,
-        status: "completed",
-        description: `Payment received for ${vehicle.plateNumber}`,
-        createdBy: req.user._id,
+          type: "payment",
+          parkingSlot: slot ? slot._id : null,
+          amount: payment.amount,
+          durationInMinutes,
+          status: "completed",
+          description: `Payment received for ${vehicle.plateNumber}`,
+          createdBy: req.user._id,
       });
     }
 

@@ -29,6 +29,14 @@ const paymentSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  durationInMinutes: {
+    type: Number,
+    default: 0,
+  },
+  amountToPay: {
+    type: Number,
+    default: 0,
+  },
   paymentMethod: {
     type: String,
     enum: ["cash", "mobile_money", "card"],

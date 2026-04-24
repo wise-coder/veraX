@@ -38,6 +38,10 @@ const transactionSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  durationInMinutes: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: String,
     enum: ["completed", "pending", "cancelled"],

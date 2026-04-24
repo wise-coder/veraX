@@ -156,8 +156,11 @@ const getReports = async (req, res, next) => {
       ? Number(
         (
           completedVehicles.reduce((sum, vehicle) => {
-            const durationHours = (new Date(vehicle.exitTime) - new Date(vehicle.entryTime)) / (1000 * 60 * 60);
-            return sum + durationHours;
+            const durationInMinutes = Math.max(
+              1,
+              Math.ceil((new Date(vehicle.exitTime) - new Date(vehicle.entryTime)) / (1000 * 60)),
+            );
+            return sum + durationInMinutes;
           }, 0) / completedVehicles.length
         ).toFixed(2),
       )

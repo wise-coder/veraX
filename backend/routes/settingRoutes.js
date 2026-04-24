@@ -19,7 +19,7 @@ router.put(
     body("timezone").optional().trim().notEmpty().withMessage("Timezone cannot be empty"),
     body("dateFormat").optional().trim().notEmpty().withMessage("Date format cannot be empty"),
     body("currency").optional().trim().notEmpty().withMessage("Currency cannot be empty"),
-    body("pricePerHour").optional().isFloat({ min: 0 }).withMessage("Price per hour cannot be negative").toFloat(),
+    body("pricePerMinute").optional().isFloat({ min: 0 }).withMessage("Price per minute cannot be negative").toFloat(),
     body("totalParkingSlots").optional().isInt({ min: 1 }).withMessage("Total parking slots must be at least 1").toInt(),
     body("defaultParkingDuration").optional().isInt({ min: 1 }).withMessage("Default parking duration must be at least 1 hour").toInt(),
     body("overstayGracePeriod").optional().isInt({ min: 0 }).withMessage("Overstay grace period cannot be negative").toInt(),

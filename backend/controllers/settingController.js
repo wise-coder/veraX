@@ -54,10 +54,10 @@ const updateSettings = async (req, res, next) => {
       });
     }
 
-    if (updates.pricePerHour !== undefined && Number(updates.pricePerHour) < 0) {
+    if (updates.pricePerMinute !== undefined && Number(updates.pricePerMinute) < 0) {
       return res.status(400).json({
         success: false,
-        message: "Price per hour cannot be negative",
+        message: "Price per minute cannot be negative",
       });
     }
 
