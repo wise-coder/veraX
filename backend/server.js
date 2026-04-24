@@ -1,13 +1,12 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const dotenv = require("dotenv");
 
 const connectDB = require("./config/db");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-
-dotenv.config();
 
 const app = express();
 const allowedOrigins = (process.env.CLIENT_URL || "")

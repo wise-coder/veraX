@@ -7,22 +7,24 @@ const getTransporter = () => {
     return transporter;
   }
 
-  const host = process.env.EMAIL_HOST;
-  const port = Number(process.env.EMAIL_PORT || 0);
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
-  if (!host || !port || !user || !pass) {
-    throw new Error("Email service is not configured. Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, and EMAIL_FROM.");
+  if (!user || !user.includes("@gmail.com")) {
+    throw new Error("EMAIL_USER must be your full Gmail address.");
+  }
+
+  if (!pass) {
+    throw new Error("EMAIL_PASS is required and must be a Gmail App Password.");
   }
 
   transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: Number(process.env.EMAIL_PORT) || 587,
+    secure: false,
     auth: {
-      user,
-      pass,
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
@@ -30,11 +32,15 @@ const getTransporter = () => {
 };
 
 const sendEmail = async ({ to, subject, text, html }) => {
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-
-  if (!from) {
-    throw new Error("Email sender is not configured. Set EMAIL_FROM or EMAIL_USER.");
+  // To use Gmail:
+  // 1. Enable 2-Step Verification
+  // 2. Generate an App Password
+  // 3. Use that App Password in EMAIL_PASS
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error("Email configuration missing. Please set EMAIL_USER and EMAIL_PASS");
   }
+
+  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
   await getTransporter().sendMail({
     from,
