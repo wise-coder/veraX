@@ -253,7 +253,7 @@ const verifyEmailOtp = async (req, res, next) => {
   }
 };
 
-const resendEmailOtp = async (req, res, next) => {
+const resendEmailOtp = async (req, res) => {
   try {
     const validationResponse = validationErrorResponse(req, res);
 
@@ -262,6 +262,14 @@ const resendEmailOtp = async (req, res, next) => {
     }
 
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
     const normalizedEmail = email.toLowerCase();
     const user = await User.findOne({ email: normalizedEmail }).select("+emailOtp +emailOtpExpires");
 
@@ -273,16 +281,26 @@ const resendEmailOtp = async (req, res, next) => {
     }
 
     if (user.isEmailVerified) {
-      return res.json({
-        success: true,
-        message: "Email is already verified",
+      return res.status(400).json({
+        success: false,
+        message: "Email already verified",
       });
     }
 
     const otp = generateOtp();
     setEmailOtp(user, otp);
     await user.save();
-    await deliverOtpEmail(user, otp);
+
+    try {
+      await deliverOtpEmail(user, otp);
+    } catch (error) {
+      console.error("Resend OTP error:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP email. Check email configuration.",
+      });
+    }
 
     return res.json({
       success: true,
@@ -293,7 +311,12 @@ const resendEmailOtp = async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    console.error("Resend OTP error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while resending OTP.",
+    });
   }
 };
 
