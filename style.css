@@ -136,13 +136,28 @@ body.sidebar-compact .sidebar-illustration {
   max-width: 100%;
 }
 
+.active-link,
+.sidebar li.active a {
+  border: 2px solid #000;
+  border-radius: 8px;
+}
+
 .sidebar li i {
   margin-right: 12px;
 }
 
 .sidebar li.active,
+.sidebar li.active:hover,
 .sidebar li:hover {
-  background: #2f8f12;
+  background: transparent;
+}
+
+.sidebar li.active a {
+  color: #fff;
+}
+
+.sidebar li.active a i {
+  color: #fff;
 }
 
 .sidebar-illustration {
@@ -815,15 +830,31 @@ body.sidebar-compact .sidebar-illustration {
   place-items: center;
   width: 58px;
   height: 58px;
+  flex-shrink: 0;
   border: 1px solid #1b1b1b;
   border-radius: 50%;
   color: #55c72a;
   font-size: 34px;
+  overflow: hidden;
 }
 
 .slot-stat-icon.circle-icon {
   border: 3px solid #55c72a;
   font-weight: 900;
+}
+
+.slot-stat-icon:not(.circle-icon) {
+  background: #050505;
+  border-color: #050505;
+  color: #fff;
+}
+
+.slot-stat-icon i,
+.slot-card-icon i {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  line-height: 1;
 }
 
 .slot-stat-icon.white-icon {
@@ -861,10 +892,17 @@ body.sidebar-compact .sidebar-illustration {
   width: 66px;
   height: 66px;
   flex-shrink: 0;
-  border: 2px solid #55c72a;
+  border: 1px solid #050505;
   border-radius: 50%;
-  color: #55c72a;
+  background: #050505;
+  color: #fff;
   font-size: 34px;
+}
+
+.payment-stat-icon i,
+.report-stat-icon i {
+  color: #fff;
+  line-height: 1;
 }
 
 .slots-grid-section {
@@ -909,12 +947,14 @@ body.sidebar-compact .sidebar-illustration {
   height: 56px;
   flex-shrink: 0;
   border-radius: 50%;
-  color: #55c72a;
+  border: 1px solid #050505;
+  background: #050505;
+  color: #fff;
   font-size: 34px;
+  overflow: hidden;
 }
 
 .slot-card.available .slot-card-icon {
-  border: 3px solid #55c72a;
   font-weight: 900;
 }
 
@@ -1351,9 +1391,10 @@ body.sidebar-open .sidebar-overlay {
   width: 62px;
   height: 62px;
   flex-shrink: 0;
-  border: 2px solid #111;
+  border: 1px solid #050505;
   border-radius: 50%;
-  color: #111;
+  background: #050505;
+  color: #fff;
   font-size: 35px;
 }
 
@@ -1644,7 +1685,8 @@ body.sidebar-open .sidebar-overlay {
 .notification-menu {
   position: absolute;
   top: calc(100% + 12px);
-  left: 0;
+  right: -10px;
+  left: auto;
   width: 320px;
   display: none;
   z-index: 1200;
@@ -1707,25 +1749,24 @@ body.sidebar-open .sidebar-overlay {
 }
 
 .notification-delete-btn {
-  width: 28px;
+  min-width: 58px;
   height: 28px;
-  border: 0;
+  border: 1px solid #111;
   border-radius: 999px;
-  background: transparent;
-  color: #666;
+  background: #fff;
+  color: #111;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0 10px;
   margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .notification-delete-btn:hover {
-  background: #efefef;
-  color: #111;
-}
-
-.notification-delete-btn i {
-  font-size: 12px;
+  background: #111;
+  color: #fff;
 }
 
 .notification-empty {
@@ -2132,7 +2173,8 @@ body.sidebar-open .sidebar-overlay {
   }
 
   .notification-menu {
-    left: 0;
+    right: -10px;
+    left: auto;
     width: min(320px, calc(100vw - 32px));
   }
 
@@ -2188,6 +2230,14 @@ body.sidebar-open .sidebar-overlay {
   .users-table,
   .report-table {
     min-width: 680px;
+  }
+
+  .payments-table-card {
+    overflow-x: auto;
+  }
+
+  .payments-table {
+    min-width: 820px;
   }
 
   .vehicles-table-footer {
@@ -2828,6 +2878,25 @@ html[data-theme] .sidebar li:hover a {
   color: var(--app-accent);
 }
 
+html[data-theme] .sidebar li.active a {
+  color: #fff;
+  border-color: #000;
+}
+
+html[data-theme] .sidebar li.active .active-link {
+  color: #fff;
+  border-color: #000;
+}
+
+html[data-theme] .sidebar li.active a i,
+html[data-theme] .sidebar li.active .active-link i {
+  color: #fff;
+}
+
+html[data-theme="dark"] .active-link {
+  border-color: #fff;
+}
+
 html[data-theme] .tree,
 html[data-theme] .tree::before,
 html[data-theme] .tree::after,
@@ -2952,6 +3021,15 @@ html[data-theme] .settings-card-title i {
   color: var(--app-text);
   border-color: var(--app-border);
   background: var(--app-surface-alt);
+}
+
+html[data-theme] .slot-stat-icon:not(.circle-icon),
+html[data-theme] .slot-card-icon,
+html[data-theme] .payment-stat-icon,
+html[data-theme] .report-stat-icon {
+  background: #050505;
+  border-color: #050505;
+  color: #fff;
 }
 
 html[data-theme] .stat-card span {

@@ -726,7 +726,7 @@ const renderNotificationMenus = () => {
             <small>${escapeHtml(formatDateTime(notification.createdAt))}</small>
           </button>
           <button type="button" class="notification-delete-btn" data-delete-notification="${notification.id}" aria-label="Delete notification">
-            <i class="bi bi-x-lg"></i>
+            Delete
           </button>
         </div>
       `).join("")
