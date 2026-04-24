@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ParkFlow | Smart Parking Management</title>
+  <script src="theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-shell">
+  <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">
+    <span class="theme-toggle-indicator" aria-hidden="true"></span>
+    <span data-theme-label>Dark Mode</span>
+  </button>
+  <nav class="navbar navbar-expand-lg fixed-top nav-blur">
+    <div class="container">
+      <a class="navbar-brand brand-mark" href="index.html">ParkFlow</a>
+      <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="mainNav">
+        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
+          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+          <li class="nav-item"><a class="nav-link" href="#preview">Parking View</a></li>
+          <li class="nav-item"><a class="nav-link" href="#workflow">Workflow</a></li>
+          <li class="nav-item"><a class="nav-link" href="dashboard.html">Dashboard</a></li>
+          <li class="nav-item mt-3 mt-lg-0"><a class="btn btn-outline-dark btn-sm px-4" href="login.html">Login</a></li>
+          <li class="nav-item mt-2 mt-lg-0"><a class="btn btn-dark btn-sm px-4" href="signup.html">Sign Up</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero-section section-pad">
+      <div class="container">
+        <div class="row align-items-center g-5">
+          <div class="col-lg-6">
+            <div class="eyebrow reveal-up">Parking Intelligence For Rental Lots</div>
+            <h1 class="display-3 hero-title reveal-up" data-delay="100">
+              Track every car, every slot, and every exit.
+            </h1>
+            <p class="lead hero-copy reveal-up" data-delay="200">
+              Build confidence for your parking team with a system that registers plates, owners, entry time, exit time, and live parking occupancy at a glance.
+            </p>
+            <div class="d-flex flex-wrap gap-3 pt-2 reveal-up" data-delay="300">
+              <a href="dashboard.html" class="btn btn-dark btn-lg px-4">Open Dashboard</a>
+              <a href="login.html" class="btn btn-outline-dark btn-lg px-4">View Login</a>
+            </div>
+            <div class="hero-metrics reveal-up" data-delay="400">
+              <div class="metric-card">
+                <strong>98%</strong>
+                <span>slot visibility</span>
+              </div>
+              <div class="metric-card">
+                <strong>24/7</strong>
+                <span>entry tracking</span>
+              </div>
+              <div class="metric-card">
+                <strong>Live</strong>
+                <span>parking animation</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="hero-visual reveal-scale">
+              <div class="visual-frame">
+                <div class="frame-lines"></div>
+                <div class="hero-card hero-card-main">
+                  <span class="panel-label">Incoming Vehicle</span>
+                  <h2>KDA 472F</h2>
+                  <p>Owner: Sarah K.</p>
+                  <p>Entry: 08:45 AM</p>
+                  <p>Exit: 05:30 PM</p>
+                </div>
+                <div class="floating-car hero-rotating-car">
+                  <img src="images/vecteezy_white-sport-car-on-transparent-background-3d-rendering_25308200.png" alt="White sport car">
+                </div>
+                <div class="floating-tag tag-one">Slot A3 Reserved</div>
+                <div class="floating-tag tag-two">Plate Scan Complete</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section-pad border-top border-dark-subtle">
+      <div class="container">
+        <div class="section-heading text-center reveal-up">
+          <span class="eyebrow">Built For Parking Teams</span>
+          <h2>Everything your attendants need at the front desk</h2>
+        </div>
+        <div class="row g-4 pt-4">
+          <div class="col-md-4">
+            <article class="feature-card reveal-up">
+              <div class="feature-index">01</div>
+              <h3>Fast registration</h3>
+              <p>Capture the plate number, owner name, entry time, exit time, and assigned space in a few clicks.</p>
+            </article>
+          </div>
+          <div class="col-md-4">
+            <article class="feature-card reveal-up" data-delay="120">
+              <div class="feature-index">02</div>
+              <h3>Live occupancy view</h3>
+              <p>Show the parking slots visually so staff can instantly see which numbers are free and which are occupied.</p>
+            </article>
+          </div>
+          <div class="col-md-4">
+            <article class="feature-card reveal-up" data-delay="240">
+              <div class="feature-index">03</div>
+              <h3>Cleaner operations</h3>
+              <p>Reduce confusion at pickup time with clear owner details, timestamp history, and visible parking assignment.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="preview" class="section-pad border-top border-dark-subtle">
+      <div class="container">
+        <div class="row align-items-center g-5">
+          <div class="col-lg-5">
+            <div class="section-heading reveal-up">
+              <span class="eyebrow">Animated Parking Preview</span>
+              <h2>Cars appear inside their assigned parking numbers</h2>
+              <p>On the dashboard, each slot can visually fill when a vehicle is assigned. This sample preview cycles parked vehicles so you can feel how the final system can look.</p>
+            </div>
+            <div class="status-stack reveal-up" data-delay="180">
+              <div class="status-card">
+                <span>Active slots</span>
+                <strong>18 / 24</strong>
+              </div>
+              <div class="status-card">
+                <span>Next exit</span>
+                <strong>11:15 AM</strong>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-7">
+            <div class="parking-preview reveal-scale">
+              <div class="parking-grid" id="parkingGrid">
+                <div class="parking-slot" data-slot="A1"><span class="slot-label">A1</span></div>
+                <div class="parking-slot" data-slot="A2"><span class="slot-label">A2</span></div>
+                <div class="parking-slot" data-slot="A3"><span class="slot-label">A3</span></div>
+                <div class="parking-slot" data-slot="A4"><span class="slot-label">A4</span></div>
+                <div class="parking-slot" data-slot="B1"><span class="slot-label">B1</span></div>
+                <div class="parking-slot" data-slot="B2"><span class="slot-label">B2</span></div>
+                <div class="parking-slot" data-slot="B3"><span class="slot-label">B3</span></div>
+                <div class="parking-slot" data-slot="B4"><span class="slot-label">B4</span></div>
+              </div>
+              <div class="preview-caption">
+                <span class="live-dot"></span>
+                Live slot simulation
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow" class="section-pad border-top border-bottom border-dark-subtle">
+      <div class="container">
+        <div class="section-heading text-center reveal-up">
+          <span class="eyebrow">Simple Workflow</span>
+          <h2>How the platform supports your daily parking flow</h2>
+        </div>
+        <div class="row g-4 pt-4">
+          <div class="col-md-4">
+            <div class="step-card reveal-up">
+              <span class="step-badge">Step 1</span>
+              <h3>Register the vehicle</h3>
+              <p>Enter the plate, owner name, and the times for entry and expected exit.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="step-card reveal-up" data-delay="120">
+              <span class="step-badge">Step 2</span>
+              <h3>Assign a slot number</h3>
+              <p>Choose the parking number and let the dashboard mark it as occupied.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="step-card reveal-up" data-delay="240">
+              <span class="step-badge">Step 3</span>
+              <h3>Monitor and release</h3>
+              <p>When the owner leaves, update the record and free the slot immediately.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section section-pad">
+      <div class="container">
+        <div class="cta-panel reveal-up">
+          <div>
+            <span class="eyebrow">Ready To Build The Full Dashboard?</span>
+            <h2>Start with the authentication frontend and grow into the parking management system.</h2>
+          </div>
+          <div class="d-flex flex-wrap gap-3">
+            <a href="dashboard.html" class="btn btn-dark btn-lg px-4">Open Dashboard</a>
+            <a href="login.html" class="btn btn-outline-dark btn-lg px-4">Staff Login</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="api.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

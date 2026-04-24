@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ParkFlow | Login</title>
+  <script src="theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-shell auth-shell-login">
+  <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">
+    <span class="theme-toggle-indicator" aria-hidden="true"></span>
+    <span data-theme-label>Dark Mode</span>
+  </button>
+  <main class="auth-page">
+    <div class="container">
+      <div class="row g-0 auth-wrapper auth-wrapper-reverse overflow-hidden">
+        <div class="col-lg-6 auth-form-side">
+          <div class="auth-form-wrap reveal-up">
+            <div class="auth-form-heading">
+              <span class="eyebrow">Welcome Back</span>
+              <h1>Staff login for daily parking operations.</h1>
+              <p>Sign in to manage vehicle arrivals, slot allocation, and customer exits.</p>
+            </div>
+            <form class="row g-3" id="loginForm">
+              <div class="col-12">
+                <label for="loginEmail" class="form-label">Email address</label>
+                <input type="email" class="form-control form-control-lg" id="loginEmail" placeholder="team@company.com" required>
+              </div>
+              <div class="col-12">
+                <label for="loginPassword" class="form-label">Password</label>
+                <div class="password-field">
+                  <input type="password" class="form-control form-control-lg" id="loginPassword" placeholder="Enter password" required>
+                  <button class="password-toggle" type="button" data-toggle-password="loginPassword">Show</button>
+                </div>
+              </div>
+              <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="form-check custom-check">
+                  <input class="form-check-input" type="checkbox" value="" id="rememberMe">
+                  <label class="form-check-label" for="rememberMe">
+                    Keep me signed in
+                  </label>
+                </div>
+                <a href="signup.html" class="text-link">Need an account?</a>
+              </div>
+              <div class="col-12 d-grid">
+                <button type="submit" class="btn btn-dark btn-lg">Login To Dashboard</button>
+              </div>
+            </form>
+            <div class="quick-info">
+              <div class="quick-info-card">
+                <span>Current mode</span>
+                <strong>Front desk access</strong>
+              </div>
+              <div class="quick-info-card">
+                <span>Live parking panel</span>
+                <strong>Ready for integration</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 auth-aside auth-aside-dark">
+          <a href="index.html" class="brand-mark auth-brand">ParkFlow</a>
+          <div class="auth-copy reveal-up" data-delay="120">
+            <span class="eyebrow">Parking Visibility</span>
+            <h2>One dashboard for entry, exit, and occupancy.</h2>
+            <p>The frontend is designed to make the system feel organized, premium, and easy to use for staff.</p>
+            <p class="auth-switch mb-0">Want a quick preview? <a href="dashboard.html">Open the dashboard</a></p>
+          </div>
+          <div class="login-preview reveal-scale">
+            <div class="mini-board">
+              <div class="mini-slot occupied">
+                <span>C1</span>
+                <img src="images/vecteezy_white-sport-car-isolated-on-transparent-background-3d_29913995.png" alt="White sport car in parking slot">
+              </div>
+              <div class="mini-slot">
+                <span>C2</span>
+              </div>
+              <div class="mini-slot occupied">
+                <span>C3</span>
+                <img src="images/vecteezy_suv-on-transparent-background_57909918.png" alt="White SUV in parking slot">
+              </div>
+              <div class="mini-slot">
+                <span>C4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="api.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
