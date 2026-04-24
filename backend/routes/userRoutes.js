@@ -13,11 +13,12 @@ const { authorize } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.use(protect, authorize("admin", "manager", "attendant"));
+router.use(protect);
 
-router.get("/", getUsers);
+router.get("/", authorize("admin", "manager", "attendant"), getUsers);
 router.post(
   "/",
+  authorize("admin"),
   [
     body("fullName").trim().notEmpty().withMessage("Full name is required"),
     body("email").trim().isEmail().withMessage("Valid email is required"),
@@ -28,9 +29,10 @@ router.post(
   ],
   createUser,
 );
-router.get("/:id", [param("id").isMongoId().withMessage("User id must be valid")], getUserById);
+router.get("/:id", authorize("admin", "manager", "attendant"), [param("id").isMongoId().withMessage("User id must be valid")], getUserById);
 router.put(
   "/:id",
+  authorize("admin", "manager", "attendant"),
   [
     param("id").isMongoId().withMessage("User id must be valid"),
     body("fullName").optional().trim().notEmpty().withMessage("Full name cannot be empty"),
@@ -42,6 +44,6 @@ router.put(
   ],
   updateUser,
 );
-router.delete("/:id", [param("id").isMongoId().withMessage("User id must be valid")], deleteUser);
+router.delete("/:id", authorize("admin", "manager", "attendant"), [param("id").isMongoId().withMessage("User id must be valid")], deleteUser);
 
 module.exports = router;

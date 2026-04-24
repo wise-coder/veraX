@@ -79,6 +79,13 @@ const createUser = async (req, res, next) => {
       return validationResponse;
     }
 
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admin can create users",
+      });
+    }
+
     const { fullName, email, phone, password, role, status } = req.body;
     const settings = await ensureSettings(req.companyId);
     const normalizedEmail = email.toLowerCase();
@@ -104,8 +111,11 @@ const createUser = async (req, res, next) => {
       phone,
       password,
       company: req.companyId,
-      role: role || "attendant",
+      role: role || "manager",
       status: status || "active",
+      isEmailVerified: true,
+      emailOtp: undefined,
+      emailOtpExpires: undefined,
     });
 
     return res.status(201).json({
@@ -145,6 +155,13 @@ const updateUser = async (req, res, next) => {
 
     if (validationResponse) {
       return validationResponse;
+    }
+
+    if (req.body.role && req.user?.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only admin can assign roles",
+      });
     }
 
     const settings = await ensureSettings(req.companyId);

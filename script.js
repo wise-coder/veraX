@@ -3331,7 +3331,6 @@ const initializeAuthPages = () => {
             phone: document.getElementById("signupPhone")?.value.trim(),
             password: document.getElementById("signupPassword")?.value,
             companyName: document.getElementById("parkingLotName")?.value.trim(),
-            role: document.getElementById("signupRole")?.value || "attendant",
           },
         });
 

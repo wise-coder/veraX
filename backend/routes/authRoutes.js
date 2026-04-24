@@ -20,7 +20,6 @@ router.post(
     body("phone").trim().notEmpty().withMessage("Phone number is required"),
     body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters long"),
     body("companyName").optional().trim().notEmpty().withMessage("Company name cannot be empty"),
-    body("role").optional().isIn(["admin", "manager", "attendant", "cashier"]).withMessage("Invalid role"),
   ],
   signup,
 );

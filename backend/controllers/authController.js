@@ -96,7 +96,7 @@ const signup = async (req, res, next) => {
       return validationResponse;
     }
 
-    const { fullName, email, phone, password, role, companyName } = req.body;
+    const { fullName, email, phone, password, companyName } = req.body;
     const normalizedEmail = email.toLowerCase();
     const normalizedCompanyName = String(companyName || `${fullName}'s Parking`).trim() || `${fullName}'s Parking`;
 
@@ -116,14 +116,13 @@ const signup = async (req, res, next) => {
       });
     }
 
-    const existingUsersCount = await User.countDocuments();
     const otp = generateOtp();
     const user = new User({
       fullName,
       email: normalizedEmail,
       phone,
       password,
-      role: existingUsersCount === 0 ? (role || "admin") : (role || "manager"),
+      role: "admin",
     });
     setEmailOtp(user, otp);
     await user.save();
