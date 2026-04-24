@@ -5,6 +5,10 @@ const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
 const PROFILE_PREFS_KEY = "profilePrefs";
 const NOTIFICATION_KEY = "veraxNotifications";
+const SETTINGS_CACHE_KEY = "veraxSettings";
+const SETTINGS_BACKUP_KEY = "veraxSettingsBackupAt";
+const BRAND_NAME = "veraX";
+const BRAND_ACCENT = "#050505";
 const PARKED_CAR_IMAGE = "images/occupied space.png";
 const currentPage = window.location.pathname.split("/").pop() || "index.html";
 const publicPages = new Set(["index.html", "login.html", "signup.html", ""]);
@@ -51,6 +55,9 @@ const pageState = {
     endDate: "",
     parkingSlot: "",
     paymentMethod: "",
+  },
+  settings: {
+    data: null,
   },
 };
 
@@ -461,6 +468,235 @@ const updateAdminLabels = (user) => {
         : '<i class="bi bi-person-fill"></i>';
     }
   });
+};
+
+const getCachedSettings = () => {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS_CACHE_KEY) || "null");
+  } catch {
+    return null;
+  }
+};
+
+const cacheSettings = (settings) => {
+  try {
+    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  } catch {
+    // Ignore storage errors.
+  }
+};
+
+const normalizeHexColor = (value, fallback = "#2F8F12") => {
+  const candidate = String(value || "").trim();
+
+  if (/^#[0-9a-f]{6}$/i.test(candidate)) {
+    return candidate.toUpperCase();
+  }
+
+  return fallback.toUpperCase();
+};
+
+const adjustHexColor = (hex, amount) => {
+  const normalized = normalizeHexColor(hex).slice(1);
+  const clamp = (channel) => Math.max(0, Math.min(255, channel));
+  const channels = [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16),
+  ].map((channel) => clamp(channel + amount));
+
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+};
+
+const setSelectValue = (select, value, aliases = {}) => {
+  if (!select) {
+    return;
+  }
+
+  const target = String(value ?? "").trim();
+  const alias = aliases[target] || target;
+  const options = Array.from(select.options);
+  const matchedOption = options.find((option) => option.value === target)
+    || options.find((option) => option.value === alias)
+    || options.find((option) => option.textContent.trim() === target)
+    || options.find((option) => option.textContent.trim() === alias);
+
+  if (matchedOption) {
+    select.value = matchedOption.value;
+  }
+};
+
+const applyDynamicAppStyles = () => {
+  const styleId = "dynamicAppSettingsStyles";
+  const accent = BRAND_ACCENT;
+  const accentDark = adjustHexColor(accent, 24);
+  let styleElement = document.getElementById(styleId);
+
+  if (!styleElement) {
+    styleElement = document.createElement("style");
+    styleElement.id = styleId;
+    document.head.appendChild(styleElement);
+  }
+
+  styleElement.textContent = `
+    .sidebar li.active a,
+    .sidebar li:hover a,
+    .vehicles-add-btn,
+    .btn-checkout,
+    .users-add-btn,
+    .settings-save-btn,
+    .settings-secondary-btn,
+    .report-filter-btn,
+    .report-export-btn,
+    .actions-card button:hover,
+    .vehicles-pagination button.active,
+    .settings-status-pill,
+    .settings-toggle input:checked + .settings-toggle-slider,
+    .slot.selected,
+    .slot-card.available .slot-card-icon,
+    .slot-card.occupied .slot-card-icon,
+    .payment-stat-icon,
+    .report-stat-icon {
+      background: ${accent} !important;
+      border-color: ${accent} !important;
+    }
+
+    .slot.selected {
+      background: transparent !important;
+    }
+
+    .sidebar-brand,
+    .stat-card span,
+    .stat-card i,
+    .slot-stat-icon,
+    .slot-card.occupied,
+    .settings-card-title i,
+    .parking-post,
+    .parking-post::after,
+    .tree,
+    .tree::before,
+    .tree::after,
+    .hill-line,
+    .mini-car,
+    .mini-car::before,
+    .mini-car::after {
+      color: ${accent} !important;
+      border-color: ${accent} !important;
+    }
+
+    .slot.selected {
+      border-left-color: ${accent} !important;
+      border-bottom-color: ${accent} !important;
+    }
+
+    .settings-color-preview,
+    .notification-badge,
+    .badge.text-bg-success,
+    .btn.btn-success,
+    .progress-bar.bg-success {
+      background: ${accent} !important;
+    }
+
+    .vehicles-add-btn:hover,
+    .btn-checkout:hover,
+    .users-add-btn:hover,
+    .settings-save-btn:hover,
+    .settings-secondary-btn:hover,
+    .report-filter-btn:hover,
+    .report-export-btn:hover,
+    .vehicles-pagination button:hover {
+      background: ${accentDark} !important;
+      border-color: ${accentDark} !important;
+    }
+  `;
+};
+
+const applyAppSettings = (settings) => {
+  if (!settings) {
+    return;
+  }
+
+  pageState.settings.data = settings;
+  cacheSettings(settings);
+
+  const primaryColor = BRAND_ACCENT;
+
+  document.querySelectorAll(".sidebar-brand").forEach((element) => {
+    element.textContent = BRAND_NAME;
+  });
+
+  const titleParts = document.title.split("|");
+  document.title = titleParts.length > 1
+    ? `${BRAND_NAME} | ${titleParts.slice(1).join("|").trim()}`
+    : BRAND_NAME;
+
+  rootElement.style.setProperty("--settings-primary-color", primaryColor);
+  applyDynamicAppStyles();
+
+  if (settings.theme === "dark" || settings.theme === "light") {
+    applyTheme(settings.theme);
+
+    try {
+      localStorage.setItem("theme", settings.theme);
+      localStorage.setItem("parkflow-theme", settings.theme);
+    } catch {
+      // Ignore storage errors.
+    }
+  }
+
+  document.body.classList.remove("sidebar-right");
+  document.body.classList.remove("sidebar-compact");
+
+  const systemName = document.getElementById("systemNameValue");
+  if (systemName) {
+    systemName.textContent = BRAND_NAME;
+  }
+
+  const colorValue = document.getElementById("primaryColorValue");
+  if (colorValue) {
+    colorValue.textContent = primaryColor;
+  }
+
+  const colorPicker = document.getElementById("primaryColor");
+  if (colorPicker) {
+    colorPicker.value = primaryColor;
+  }
+
+  const colorPreview = document.querySelector(".settings-color-preview");
+  if (colorPreview) {
+    colorPreview.style.background = primaryColor;
+  }
+};
+
+const loadAppSettings = async ({ force = false } = {}) => {
+  if (!isProtectedPage()) {
+    return null;
+  }
+
+  if (!force) {
+    const cachedSettings = getCachedSettings();
+
+    if (cachedSettings) {
+      applyAppSettings(cachedSettings);
+    }
+  }
+
+  try {
+    const response = await apiRequest("/settings");
+    const settings = response.data || null;
+
+    if (settings) {
+      applyAppSettings(settings);
+    }
+
+    return settings;
+  } catch (error) {
+    if (!pageState.settings.data) {
+      showAlert(error.message, "danger");
+    }
+
+    return pageState.settings.data;
+  }
 };
 
 const renderNotificationMenus = () => {
@@ -2605,6 +2841,259 @@ const initializeReportsPage = () => {
   }
 };
 
+const populateSettingsForm = (settings) => {
+  document.getElementById("lotName").value = BRAND_NAME;
+  document.getElementById("lotAddress").value = settings.address || "";
+  setSelectValue(document.getElementById("lotTimezone"), settings.timezone, {
+    "(UTC+02:00) Cairo": "Africa/Cairo",
+    "(UTC+03:00) Nairobi": "Africa/Nairobi",
+  });
+  setSelectValue(document.getElementById("dateFormat"), settings.dateFormat);
+
+  const currencySelect = document.getElementById("currency");
+  if (currencySelect) {
+    Array.from(currencySelect.options).forEach((option) => {
+      if (!option.value) {
+        const text = option.textContent.trim();
+        option.value = text.startsWith("USD") ? "USD" : text.startsWith("EUR") ? "EUR" : text.startsWith("TZS") ? "TZS" : text;
+      }
+    });
+    setSelectValue(currencySelect, settings.currency);
+  }
+
+  document.getElementById("totalParkingSlots").value = String(settings.totalParkingSlots ?? 20);
+  document.getElementById("defaultDuration").value = String(settings.defaultParkingDuration ?? 2);
+  document.getElementById("gracePeriod").value = String(settings.overstayGracePeriod ?? 15);
+  document.getElementById("allowOvernightParking").checked = Boolean(settings.allowOvernightParking);
+  document.getElementById("enableSlotSelection").checked = Boolean(settings.enableSlotSelection);
+  document.getElementById("autoAssignSlot").checked = Boolean(settings.autoAssignSlot);
+  document.getElementById("emailNotifications").checked = Boolean(settings.emailNotifications);
+  document.getElementById("smsNotifications").checked = Boolean(settings.smsNotifications);
+  document.getElementById("paymentNotifications").checked = Boolean(settings.paymentNotifications);
+  document.getElementById("overstayAlerts").checked = Boolean(settings.overstayAlerts);
+  document.getElementById("dailySummaryReports").checked = Boolean(settings.dailySummaryReports);
+  setSelectValue(document.getElementById("passwordPolicy"), settings.passwordPolicy, {
+    Strong: "strong",
+    Medium: "medium",
+    Basic: "basic",
+  });
+  document.getElementById("sessionTimeout").value = String(settings.sessionTimeout ?? 30);
+  document.getElementById("twoFactorAuthentication").checked = Boolean(settings.twoFactorAuthentication);
+  document.getElementById("attemptLimit").value = String(settings.loginAttemptLimit ?? 5);
+  document.getElementById("requireStrongPassword").checked = Boolean(settings.requireStrongPassword);
+  setSelectValue(document.getElementById("themeSetting"), settings.theme, {
+    Dark: "dark",
+    Light: "light",
+  });
+  document.getElementById("primaryColor").value = BRAND_ACCENT;
+  setSelectValue(document.getElementById("sidebarPosition"), settings.sidebarPosition, {
+    Left: "left",
+    Right: "right",
+  });
+  document.getElementById("compactSidebar").checked = Boolean(settings.compactSidebar);
+
+  applyAppSettings(settings);
+};
+
+const collectSettingsFormPayload = () => ({
+  parkingLotName: BRAND_NAME,
+  address: document.getElementById("lotAddress")?.value.trim(),
+  timezone: document.getElementById("lotTimezone")?.value || "Africa/Cairo",
+  dateFormat: document.getElementById("dateFormat")?.value || "YYYY-MM-DD HH:mm",
+  currency: document.getElementById("currency")?.value || "USD",
+  totalParkingSlots: Number(document.getElementById("totalParkingSlots")?.value || 0),
+  defaultParkingDuration: Number(document.getElementById("defaultDuration")?.value || 0),
+  overstayGracePeriod: Number(document.getElementById("gracePeriod")?.value || 0),
+  allowOvernightParking: document.getElementById("allowOvernightParking")?.checked ?? false,
+  enableSlotSelection: document.getElementById("enableSlotSelection")?.checked ?? false,
+  autoAssignSlot: document.getElementById("autoAssignSlot")?.checked ?? false,
+  emailNotifications: document.getElementById("emailNotifications")?.checked ?? false,
+  smsNotifications: document.getElementById("smsNotifications")?.checked ?? false,
+  paymentNotifications: document.getElementById("paymentNotifications")?.checked ?? false,
+  overstayAlerts: document.getElementById("overstayAlerts")?.checked ?? false,
+  dailySummaryReports: document.getElementById("dailySummaryReports")?.checked ?? false,
+  passwordPolicy: String(document.getElementById("passwordPolicy")?.value || "strong").toLowerCase(),
+  sessionTimeout: Number(document.getElementById("sessionTimeout")?.value || 0),
+  twoFactorAuthentication: document.getElementById("twoFactorAuthentication")?.checked ?? false,
+  loginAttemptLimit: Number(document.getElementById("attemptLimit")?.value || 0),
+  requireStrongPassword: document.getElementById("requireStrongPassword")?.checked ?? false,
+  theme: String(document.getElementById("themeSetting")?.value || "light").toLowerCase(),
+  primaryColor: BRAND_ACCENT,
+  sidebarPosition: String(document.getElementById("sidebarPosition")?.value || "left").toLowerCase(),
+  compactSidebar: document.getElementById("compactSidebar")?.checked ?? false,
+});
+
+const updateSettingsInfoPanel = async (settings) => {
+  const versionValue = document.getElementById("systemVersionValue");
+  const lastBackupValue = document.getElementById("lastBackupValue");
+  const totalUsersValue = document.getElementById("totalUsersValue");
+  const totalVehiclesValue = document.getElementById("totalVehiclesValue");
+
+  if (versionValue) {
+    versionValue.textContent = "1.0.0";
+  }
+
+  if (lastBackupValue) {
+    const backupAt = localStorage.getItem(SETTINGS_BACKUP_KEY) || settings?.updatedAt;
+    lastBackupValue.textContent = backupAt ? formatDateTime(backupAt) : "Not yet backed up";
+  }
+
+  try {
+    const [usersResponse, vehiclesResponse] = await Promise.all([
+      apiRequest("/users?page=1&limit=1"),
+      apiRequest("/vehicles?page=1&limit=1"),
+    ]);
+
+    if (totalUsersValue) {
+      totalUsersValue.textContent = String(usersResponse.data?.pagination?.total ?? 0);
+    }
+
+    if (totalVehiclesValue) {
+      totalVehiclesValue.textContent = String(vehiclesResponse.data?.pagination?.total ?? 0);
+    }
+  } catch {
+    if (totalUsersValue && totalUsersValue.textContent === "--") {
+      totalUsersValue.textContent = "N/A";
+    }
+
+    if (totalVehiclesValue && totalVehiclesValue.textContent === "--") {
+      totalVehiclesValue.textContent = "N/A";
+    }
+  }
+};
+
+const initializeSettingsPage = async () => {
+  const saveButton = document.getElementById("saveSettingsButton");
+
+  if (!saveButton) {
+    return;
+  }
+
+  const backupButton = document.getElementById("backupSettingsButton");
+  const colorPicker = document.getElementById("primaryColor");
+  const isAdmin = pageState.currentUser?.role === "admin";
+
+  if (!isAdmin) {
+    saveButton.disabled = true;
+    saveButton.title = "Only admins can update settings";
+
+    if (backupButton) {
+      backupButton.disabled = true;
+      backupButton.title = "Only admins can create a settings backup";
+    }
+  }
+
+  const settings = await loadAppSettings({ force: true });
+
+  if (settings) {
+    populateSettingsForm(settings);
+    await updateSettingsInfoPanel(settings);
+  }
+
+  colorPicker?.addEventListener("input", (event) => {
+    const previewSettings = {
+      ...(pageState.settings.data || {}),
+      primaryColor: BRAND_ACCENT,
+      theme: document.getElementById("themeSetting")?.value || pageState.settings.data?.theme || "light",
+      sidebarPosition: "left",
+      compactSidebar: false,
+      parkingLotName: BRAND_NAME,
+    };
+
+    applyAppSettings(previewSettings);
+  });
+
+  document.getElementById("themeSetting")?.addEventListener("change", () => {
+    applyAppSettings({
+      ...(pageState.settings.data || {}),
+      ...collectSettingsFormPayload(),
+    });
+  });
+
+  document.getElementById("sidebarPosition")?.addEventListener("change", () => {
+    applyAppSettings({
+      ...(pageState.settings.data || {}),
+      ...collectSettingsFormPayload(),
+    });
+  });
+
+  document.getElementById("compactSidebar")?.addEventListener("change", () => {
+    applyAppSettings({
+      ...(pageState.settings.data || {}),
+      ...collectSettingsFormPayload(),
+    });
+  });
+
+  document.getElementById("lotName")?.addEventListener("input", () => {
+    applyAppSettings({
+      ...(pageState.settings.data || {}),
+      parkingLotName: BRAND_NAME,
+      primaryColor: BRAND_ACCENT,
+      theme: document.getElementById("themeSetting")?.value || pageState.settings.data?.theme,
+      sidebarPosition: "left",
+      compactSidebar: false,
+    });
+  });
+
+  saveButton.addEventListener("click", async () => {
+    if (!isAdmin) {
+      showAlert("Only admins can update settings.", "danger");
+      return;
+    }
+
+    const originalText = saveButton.innerHTML;
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+
+    try {
+      const payload = collectSettingsFormPayload();
+      const response = await apiRequest("/settings", {
+        method: "PUT",
+        body: payload,
+      });
+
+      const updatedSettings = response.data || payload;
+      applyAppSettings(updatedSettings);
+      populateSettingsForm(updatedSettings);
+      await updateSettingsInfoPanel(updatedSettings);
+      showAlert("Settings updated successfully");
+    } catch (error) {
+      showAlert(error.message, "danger");
+    } finally {
+      saveButton.disabled = false;
+      saveButton.innerHTML = originalText;
+    }
+  });
+
+  backupButton?.addEventListener("click", async () => {
+    if (!isAdmin) {
+      showAlert("Only admins can create a settings backup.", "danger");
+      return;
+    }
+
+    try {
+      const settingsToBackup = pageState.settings.data || collectSettingsFormPayload();
+      const timestamp = new Date().toISOString();
+      const backupBlob = new Blob([JSON.stringify(settingsToBackup, null, 2)], {
+        type: "application/json",
+      });
+      const downloadUrl = URL.createObjectURL(backupBlob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `settings-backup-${timestamp.replace(/[:.]/g, "-")}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+      localStorage.setItem(SETTINGS_BACKUP_KEY, timestamp);
+      await updateSettingsInfoPanel(settingsToBackup);
+      showAlert("Settings backup downloaded successfully");
+    } catch (error) {
+      showAlert(error.message || "Failed to create settings backup.", "danger");
+    }
+  });
+};
+
 const initializeAuthPages = () => {
   const loginForm = document.getElementById("loginForm");
   const signupForm = document.getElementById("signupForm");
@@ -2692,6 +3181,7 @@ const initializeApp = async () => {
 
   if (isProtectedPage()) {
     await loadCurrentUser();
+    await loadAppSettings();
   }
 
   initializeNotifications();
@@ -2704,6 +3194,7 @@ const initializeApp = async () => {
   initializePaymentsPage();
   initializeReportsPage();
   initializeUsersPage();
+  await initializeSettingsPage();
 };
 
 initializeApp();
