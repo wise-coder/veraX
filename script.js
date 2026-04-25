@@ -3,6 +3,7 @@ const themeToggle = document.querySelector("[data-theme-toggle]");
 const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
+const PROFILE_PREFS_KEY = "profilePrefs";
 const PARKED_CAR_IMAGE = "images/occupied space.png";
 const currentPage = window.location.pathname.split("/").pop() || "index.html";
 const publicPages = new Set(["index.html", "login.html", "signup.html", ""]);
@@ -154,6 +155,38 @@ const escapeHtml = (value) => String(value ?? "")
   .replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;")
   .replace(/'/g, "&#39;");
+
+const getProfilePrefs = () => {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_PREFS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveProfilePrefs = (prefs) => {
+  try {
+    localStorage.setItem(PROFILE_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // Ignore storage errors.
+  }
+};
+
+const getMergedUserProfile = (user) => {
+  if (!user?.id) {
+    return user;
+  }
+
+  const prefs = getProfilePrefs();
+  const saved = prefs[user.id] || {};
+
+  return {
+    ...user,
+    fullName: saved.fullName || user.fullName,
+    phone: saved.phone || user.phone,
+    profileImage: saved.profileImage || "",
+  };
+};
 
 const formatCurrency = (value) => {
   const amount = Number(value || 0);
@@ -342,17 +375,316 @@ const renderEmptyState = (container, message) => {
 };
 
 const updateAdminLabels = (user) => {
+  const displayUser = getMergedUserProfile(user || {});
+
   document.querySelectorAll(".admin").forEach((adminBlock) => {
     const name = adminBlock.querySelector("strong");
     const role = adminBlock.querySelector("small");
+    const avatar = adminBlock.querySelector(".avatar");
 
     if (name) {
-      name.textContent = user?.fullName || "User";
+      name.textContent = displayUser?.fullName || "User";
     }
 
     if (role) {
-      role.textContent = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Staff";
+      role.textContent = displayUser?.role ? displayUser.role.charAt(0).toUpperCase() + displayUser.role.slice(1) : "Staff";
     }
+
+    if (avatar) {
+      avatar.innerHTML = displayUser?.profileImage
+        ? `<img src="${displayUser.profileImage}" alt="${escapeHtml(displayUser.fullName || "Profile")}" class="profile-avatar-image">`
+        : '<i class="bi bi-person-fill"></i>';
+    }
+  });
+};
+
+const syncProfileMenuContent = (adminBlock, menuId, user) => {
+  const mergedUser = getMergedUserProfile(user || {});
+  const menu = adminBlock.querySelector(".profile-menu");
+
+  if (!menu) {
+    return;
+  }
+
+  const headerAvatar = menu.querySelector(".profile-menu-avatar");
+  const headerName = menu.querySelector(".profile-menu-header strong");
+  const headerEmail = menu.querySelector(".profile-menu-header small");
+  const nameInput = menu.querySelector(`#${menuId}Name`);
+  const phoneInput = menu.querySelector(`#${menuId}Phone`);
+
+  if (headerAvatar) {
+    headerAvatar.innerHTML = mergedUser?.profileImage
+      ? `<img src="${mergedUser.profileImage}" alt="${escapeHtml(mergedUser.fullName || "Profile")}" class="profile-avatar-image">`
+      : '<i class="bi bi-person-fill"></i>';
+  }
+
+  if (headerName) {
+    headerName.textContent = mergedUser?.fullName || "User";
+  }
+
+  if (headerEmail) {
+    headerEmail.textContent = mergedUser?.email || "";
+  }
+
+  if (nameInput) {
+    nameInput.value = mergedUser?.fullName || "";
+    nameInput.setAttribute("value", mergedUser?.fullName || "");
+  }
+
+  if (phoneInput) {
+    phoneInput.value = mergedUser?.phone || "";
+    phoneInput.setAttribute("value", mergedUser?.phone || "");
+  }
+};
+
+const initializeProfileMenu = () => {
+  const adminBlocks = document.querySelectorAll(".admin");
+
+  if (!adminBlocks.length) {
+    return;
+  }
+
+  adminBlocks.forEach((adminBlock, index) => {
+    const menuId = `profileMenu${index}`;
+
+    if (adminBlock.dataset.profileReady) {
+      syncProfileMenuContent(adminBlock, menuId, pageState.currentUser || {});
+      return;
+    }
+
+    adminBlock.dataset.profileReady = "true";
+    adminBlock.dataset.profileMenuId = menuId;
+    adminBlock.setAttribute("role", "button");
+    adminBlock.setAttribute("tabindex", "0");
+    adminBlock.setAttribute("aria-expanded", "false");
+
+    const mergedUser = getMergedUserProfile(pageState.currentUser || {});
+
+    const menu = document.createElement("div");
+    menu.className = "profile-menu";
+    menu.id = menuId;
+    menu.innerHTML = `
+      <div class="profile-menu-card">
+        <div class="profile-menu-header">
+          <div class="profile-menu-avatar">
+            ${mergedUser?.profileImage ? `<img src="${mergedUser.profileImage}" alt="${escapeHtml(mergedUser.fullName || "Profile")}" class="profile-avatar-image">` : '<i class="bi bi-person-fill"></i>'}
+          </div>
+          <div>
+            <strong>${escapeHtml(mergedUser?.fullName || "User")}</strong>
+            <small>${escapeHtml(mergedUser?.email || "")}</small>
+          </div>
+        </div>
+        <p class="profile-menu-note">Customize your profile, upload a picture, or log out.</p>
+        <label class="profile-upload-btn" for="${menuId}Upload">Upload Photo</label>
+        <input type="file" id="${menuId}Upload" accept="image/*" hidden>
+        <div class="profile-menu-field">
+          <label for="${menuId}Name">Full Name</label>
+          <input type="text" id="${menuId}Name" value="${escapeHtml(mergedUser?.fullName || "")}">
+        </div>
+        <div class="profile-menu-field">
+          <label for="${menuId}Phone">Phone</label>
+          <input type="text" id="${menuId}Phone" value="${escapeHtml(mergedUser?.phone || "")}">
+        </div>
+        <div class="profile-menu-actions">
+          <button type="button" class="profile-save-btn">Save Changes</button>
+          <button type="button" class="profile-logout-btn">Logout</button>
+        </div>
+      </div>
+    `;
+
+    adminBlock.appendChild(menu);
+
+    const toggleMenu = (open) => {
+      adminBlock.classList.toggle("profile-open", open);
+      adminBlock.setAttribute("aria-expanded", String(open));
+    };
+
+    adminBlock.addEventListener("click", (event) => {
+      event.stopPropagation();
+
+      if (event.target.closest(".profile-menu")) {
+        return;
+      }
+
+      const isOpen = adminBlock.classList.contains("profile-open");
+      document.querySelectorAll(".admin.profile-open").forEach((block) => {
+        block.classList.remove("profile-open");
+        block.setAttribute("aria-expanded", "false");
+      });
+      toggleMenu(!isOpen);
+    });
+
+    adminBlock.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        adminBlock.click();
+      }
+    });
+
+    menu.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    menu.querySelector(".profile-logout-btn")?.addEventListener("click", () => {
+      clearAuthSession();
+      window.location.href = "login.html";
+    });
+
+    menu.querySelector(".profile-save-btn")?.addEventListener("click", () => {
+      const nameInput = menu.querySelector(`#${menuId}Name`);
+      const phoneInput = menu.querySelector(`#${menuId}Phone`);
+      const currentUser = pageState.currentUser;
+
+      if (!currentUser?.id) {
+        showAlert("Unable to save profile", "danger");
+        return;
+      }
+
+      const prefs = getProfilePrefs();
+      prefs[currentUser.id] = {
+        ...(prefs[currentUser.id] || {}),
+        fullName: nameInput?.value.trim() || currentUser.fullName,
+        phone: phoneInput?.value.trim() || currentUser.phone,
+      };
+      saveProfilePrefs(prefs);
+
+      pageState.currentUser = {
+        ...currentUser,
+        fullName: prefs[currentUser.id].fullName,
+        phone: prefs[currentUser.id].phone,
+      };
+
+      try {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(pageState.currentUser));
+      } catch {
+        // Ignore storage errors.
+      }
+
+      updateAdminLabels(pageState.currentUser);
+      initializeProfileMenu();
+      showAlert("Profile updated successfully");
+      toggleMenu(false);
+    });
+
+    menu.querySelector(`#${menuId}Upload`)?.addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      const currentUser = pageState.currentUser;
+
+      if (!file || !currentUser?.id) {
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const prefs = getProfilePrefs();
+        prefs[currentUser.id] = {
+          ...(prefs[currentUser.id] || {}),
+          profileImage: String(reader.result || ""),
+        };
+        saveProfilePrefs(prefs);
+        updateAdminLabels(pageState.currentUser);
+        initializeProfileMenu();
+        showAlert("Profile image updated successfully");
+        event.target.value = "";
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  if (!document.body.dataset.profileOutsideBound) {
+    document.body.dataset.profileOutsideBound = "true";
+    document.addEventListener("click", () => {
+      document.querySelectorAll(".admin.profile-open").forEach((block) => {
+        block.classList.remove("profile-open");
+        block.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+};
+
+const initializeResponsiveSidebar = () => {
+  const sidebar = document.querySelector(".sidebar");
+  const menuTrigger = document.querySelector(".menu-toggle") || document.querySelector(".menu-icon");
+
+  if (!sidebar || !menuTrigger) {
+    return;
+  }
+
+  let overlay = document.querySelector(".sidebar-overlay");
+
+  if (!overlay) {
+    overlay = document.createElement("button");
+    overlay.type = "button";
+    overlay.className = "sidebar-overlay";
+    overlay.setAttribute("aria-label", "Close navigation");
+    document.body.appendChild(overlay);
+  }
+
+  const closeSidebar = () => {
+    document.body.classList.remove("sidebar-open");
+    menuTrigger.setAttribute("aria-expanded", "false");
+  };
+
+  const openSidebar = () => {
+    document.body.classList.add("sidebar-open");
+    menuTrigger.setAttribute("aria-expanded", "true");
+  };
+
+  if (!menuTrigger.dataset.sidebarReady) {
+    menuTrigger.dataset.sidebarReady = "true";
+    menuTrigger.setAttribute("role", "button");
+    menuTrigger.setAttribute("tabindex", "0");
+    menuTrigger.setAttribute("aria-expanded", "false");
+    menuTrigger.setAttribute("aria-label", "Open navigation");
+
+    menuTrigger.addEventListener("click", () => {
+      if (window.innerWidth > 1100) {
+        return;
+      }
+
+      if (document.body.classList.contains("sidebar-open")) {
+        closeSidebar();
+        return;
+      }
+
+      openSidebar();
+    });
+
+    menuTrigger.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        menuTrigger.click();
+      }
+    });
+  }
+
+  if (!overlay.dataset.sidebarReady) {
+    overlay.dataset.sidebarReady = "true";
+    overlay.addEventListener("click", closeSidebar);
+  }
+
+  if (!document.body.dataset.sidebarResizeReady) {
+    document.body.dataset.sidebarResizeReady = "true";
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 1100) {
+        closeSidebar();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeSidebar();
+      }
+    });
+  }
+
+  sidebar.querySelectorAll("a").forEach((link) => {
+    if (link.dataset.sidebarCloseReady) {
+      return;
+    }
+
+    link.dataset.sidebarCloseReady = "true";
+    link.addEventListener("click", closeSidebar);
   });
 };
 
@@ -692,6 +1024,113 @@ const ensureCheckoutModal = () => {
   };
 };
 
+const ensureSlotInfoModal = () => {
+  let modalElement = document.getElementById("slotInfoModal");
+
+  if (!modalElement) {
+    modalElement = document.createElement("div");
+    modalElement.className = "modal fade";
+    modalElement.id = "slotInfoModal";
+    modalElement.tabIndex = -1;
+    modalElement.innerHTML = `
+      <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Occupied Slot</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="slotInfoModalBody"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalElement);
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+  const body = modalElement.querySelector("#slotInfoModalBody");
+  const title = modalElement.querySelector(".modal-title");
+
+  return {
+    open: (slot) => {
+      title.textContent = `${slot.slotNumber} Details`;
+
+      if (slot.status === "occupied") {
+        body.innerHTML = `
+          <div class="d-grid gap-2">
+            <div><strong>Slot:</strong> ${escapeHtml(slot.slotNumber)}</div>
+            <div><strong>Status:</strong> ${escapeHtml(slot.status || "N/A")}</div>
+            <div><strong>Plate:</strong> ${escapeHtml(slot.plateNumber || "N/A")}</div>
+            <div><strong>Owner:</strong> ${escapeHtml(slot.ownerName || "N/A")}</div>
+            <div><strong>Phone:</strong> ${escapeHtml(slot.ownerPhone || "N/A")}</div>
+            <div><strong>Vehicle Type:</strong> ${escapeHtml(slot.vehicleType || "N/A")}</div>
+            <div><strong>Entry Time:</strong> ${escapeHtml(formatDateTime(slot.entryTime))}</div>
+            <div class="pt-2">
+              <button type="button" class="btn btn-dark btn-sm w-100" data-slot-checkout="true" data-vehicle-id="${escapeHtml(slot.currentVehicle || "")}">Check Out</button>
+            </div>
+          </div>
+        `;
+      } else {
+        body.innerHTML = `
+          <div class="d-grid gap-2">
+            <div><strong>Slot:</strong> ${escapeHtml(slot.slotNumber)}</div>
+            <div><strong>Status:</strong> ${escapeHtml(slot.status || "N/A")}</div>
+            <div><strong>Details:</strong> This parking slot is empty.</div>
+            <div class="pt-2">
+              <button type="button" class="btn btn-outline-danger btn-sm w-100" data-slot-delete="true">Delete Slot</button>
+            </div>
+          </div>
+        `;
+      }
+
+      const deleteButton = body.querySelector("[data-slot-delete]");
+      const checkoutButton = body.querySelector("[data-slot-checkout]");
+
+      if (deleteButton) {
+        deleteButton.addEventListener("click", async () => {
+          if (!window.confirm(`Delete parking slot ${slot.slotNumber}?`)) {
+            return;
+          }
+
+          deleteButton.disabled = true;
+
+          try {
+            await apiRequest(`/parking-slots/${slot.id}`, {
+              method: "DELETE",
+            });
+            showAlert("Parking slot deleted successfully");
+            modal.hide();
+            await loadDashboard();
+          } catch (error) {
+            showAlert(error.message, "danger");
+          } finally {
+            deleteButton.disabled = false;
+          }
+        });
+      }
+
+      if (checkoutButton && checkoutButton.dataset.vehicleId) {
+        checkoutButton.addEventListener("click", async () => {
+          checkoutButton.disabled = true;
+
+          try {
+            await performCheckOut(checkoutButton.dataset.vehicleId, "cash", async () => {
+              modal.hide();
+              await loadDashboard();
+            });
+          } catch (error) {
+            showAlert(error.message, "danger");
+          } finally {
+            checkoutButton.disabled = false;
+          }
+        });
+      }
+
+      modal.show();
+    },
+  };
+};
+
 const performCheckIn = async (payload, afterSuccess) => {
   const response = await apiRequest("/vehicles/check-in", {
     method: "POST",
@@ -772,7 +1211,7 @@ function renderParkingMap(slots) {
     const occupied = slot.status === "occupied";
 
     return `
-      <div class="slot-wrapper">
+      <div class="slot-wrapper slot-trigger" data-dashboard-slot="${slot.id}" role="button" tabindex="0" aria-label="View ${escapeHtml(slot.slotNumber)} details">
         <span class="slot-number">${escapeHtml(slot.slotNumber)}</span>
         <div class="slot ${occupied ? "occupied" : ""}" title="${escapeHtml(slot.slotNumber)}">
           ${occupied ? `
@@ -785,6 +1224,38 @@ function renderParkingMap(slots) {
       </div>
     `;
   }).join("");
+
+  parkingSlots.querySelectorAll("[data-dashboard-slot]").forEach((slotElement) => {
+    const openSlotModal = () => {
+      const slot = pageState.dashboard.overview?.parkingMapData?.find((item) => item.id === slotElement.dataset.dashboardSlot);
+
+      if (slot) {
+        ensureSlotInfoModal().open(slot);
+      }
+    };
+
+    slotElement.addEventListener("click", openSlotModal);
+    slotElement.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openSlotModal();
+      }
+    });
+  });
+
+  parkingSlots.onmousedown = (event) => {
+    const slotElement = event.target.closest("[data-dashboard-slot]");
+
+    if (!slotElement) {
+      return;
+    }
+
+    const slot = pageState.dashboard.overview?.parkingMapData?.find((item) => item.id === slotElement.dataset.dashboardSlot);
+
+    if (slot) {
+      ensureSlotInfoModal().open(slot);
+    }
+  };
 }
 
 function renderRecentVehicles(vehicles) {
@@ -835,6 +1306,7 @@ const initializeDashboardPage = () => {
 
   const vehicleModal = ensureVehicleModal();
   const checkoutModal = ensureCheckoutModal();
+  const slotInfoModal = ensureSlotInfoModal();
 
   document.getElementById("addVehicleBtn")?.addEventListener("click", async () => {
     await vehicleModal.open({
@@ -1196,7 +1668,7 @@ const initializeParkingSlotsPage = () => {
   });
 
   document.getElementById("addSlotButton")?.addEventListener("click", async () => {
-    const slotNumber = window.prompt("Enter slot number", "");
+    const slotNumber = window.prompt("Enter slot number", "")?.trim().toUpperCase();
 
     if (!slotNumber) {
       return;
@@ -1721,12 +2193,15 @@ const initializeProtectedRouteGuard = () => {
 
 const initializeApp = async () => {
   handleLogoutLinks();
+  initializeResponsiveSidebar();
   initializeProtectedRouteGuard();
   initializeAuthPages();
 
   if (isProtectedPage()) {
     await loadCurrentUser();
   }
+
+  initializeProfileMenu();
 
   initializeDashboardPage();
   initializeVehiclesPage();

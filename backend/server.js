@@ -10,10 +10,21 @@ const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 dotenv.config();
 
 const app = express();
+const allowedOrigins = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",") : "*",
+  origin(origin, callback) {
+    if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true,
 }));
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
@@ -23,7 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (_req, res) => {
   res.json({
     success: true,
-    message: "Parking Management API is running",
+    message: "veraX API is running",
     data: {
       environment: process.env.NODE_ENV || "development",
     },

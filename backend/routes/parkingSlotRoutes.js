@@ -21,7 +21,7 @@ router.get("/available", getAvailableSlots);
 router.get("/:id", [param("id").isMongoId().withMessage("Parking slot id must be valid")], getParkingSlotById);
 router.post(
   "/",
-  authorize("admin", "manager"),
+  authorize("admin", "manager", "attendant"),
   [
     body("slotNumber").trim().notEmpty().withMessage("Slot number is required"),
     body("status").optional().isIn(["available", "occupied", "reserved", "maintenance"]).withMessage("Invalid slot status"),
@@ -31,7 +31,7 @@ router.post(
 );
 router.put(
   "/:id",
-  authorize("admin", "manager"),
+  authorize("admin", "manager", "attendant"),
   [
     param("id").isMongoId().withMessage("Parking slot id must be valid"),
     body("slotNumber").optional().trim().notEmpty().withMessage("Slot number cannot be empty"),
@@ -40,6 +40,6 @@ router.put(
   ],
   updateParkingSlot,
 );
-router.delete("/:id", authorize("admin", "manager"), [param("id").isMongoId().withMessage("Parking slot id must be valid")], deleteParkingSlot);
+router.delete("/:id", authorize("admin", "manager", "attendant"), [param("id").isMongoId().withMessage("Parking slot id must be valid")], deleteParkingSlot);
 
 module.exports = router;

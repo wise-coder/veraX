@@ -13,7 +13,7 @@ router.get("/", getPayments);
 router.get("/:id", [param("id").isMongoId().withMessage("Payment id must be valid")], getPaymentById);
 router.put(
   "/:id/mark-paid",
-  authorize("admin", "manager", "cashier"),
+  authorize("admin", "manager", "cashier", "attendant"),
   [
     param("id").isMongoId().withMessage("Payment id must be valid"),
     body("paymentMethod").optional().isIn(["cash", "mobile_money", "card"]).withMessage("Invalid payment method"),
