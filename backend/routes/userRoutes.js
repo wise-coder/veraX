@@ -13,7 +13,7 @@ const { authorize } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.use(protect, authorize("admin"));
+router.use(protect, authorize("admin", "manager", "attendant"));
 
 router.get("/", getUsers);
 router.post(

@@ -1,24 +1,2 @@
 MongoDB connected: 127.0.0.1
 Server running on port 5000
-[0mGET / [32m200[0m 7.854 ms - 86[0m
-[0mGET /api/auth/me [36m304[0m 71.708 ms - -[0m
-[0mGET /api/dashboard/overview [36m304[0m 146.716 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 9.381 ms - -[0m
-[0mGET /api/vehicles?page=1&limit=10 [36m304[0m 42.592 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 8.125 ms - -[0m
-[0mGET /api/parking-slots?page=1&limit=20 [36m304[0m 72.249 ms - -[0m
-[0mGET /api/parking-slots/available [32m200[0m 24.563 ms - 3934[0m
-[0mGET /api/auth/me [36m304[0m 11.681 ms - -[0m
-[0mGET /api/transactions?page=1&limit=10 [36m304[0m 37.772 ms - -[0m
-[0mGET /api/transactions?page=1&limit=10&export=csv [32m200[0m 28.047 ms - 1079[0m
-[0mGET /api/auth/me [36m304[0m 9.189 ms - -[0m
-[0mGET /api/payments?page=1&limit=10 [36m304[0m 30.300 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 6.049 ms - -[0m
-[0mGET /api/reports [33m403[0m 10.441 ms - 43[0m
-[0mGET /api/dashboard/overview [36m304[0m 50.279 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 5.825 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 8.640 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 5.841 ms - -[0m
-[0mGET /api/auth/me [36m304[0m 9.187 ms - -[0m
-[0mGET /api/reports [33m403[0m 12.071 ms - 43[0m
-[0mGET /api/dashboard/overview [36m304[0m 50.122 ms - -[0m

@@ -4,6 +4,7 @@ const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5
 const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
 const PROFILE_PREFS_KEY = "profilePrefs";
+const NOTIFICATION_KEY = "veraxNotifications";
 const PARKED_CAR_IMAGE = "images/occupied space.png";
 const currentPage = window.location.pathname.split("/").pop() || "index.html";
 const publicPages = new Set(["index.html", "login.html", "signup.html", ""]);
@@ -37,6 +38,13 @@ const pageState = {
     search: "",
     status: "",
     paymentMethod: "",
+  },
+  users: {
+    page: 1,
+    limit: 10,
+    search: "",
+    status: "",
+    role: "",
   },
   reports: {
     startDate: "",
@@ -232,6 +240,58 @@ const formatDuration = (entryTime, exitTime = new Date()) => {
   return `${hours}h ${minutes}m`;
 };
 
+const getNotifications = () => {
+  try {
+    return JSON.parse(localStorage.getItem(NOTIFICATION_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveNotifications = (notifications) => {
+  try {
+    localStorage.setItem(NOTIFICATION_KEY, JSON.stringify(notifications));
+  } catch {
+    // Ignore storage errors.
+  }
+};
+
+const shouldCreateNotification = (message, type) => {
+  if (type === "danger") {
+    return false;
+  }
+
+  return type === "success"
+    || type === "info"
+    || /(success|created|updated|deleted|checked|saved|exported|marked|paid|assigned)/i.test(message);
+};
+
+const pushNotification = (message, type = "info") => {
+  const notifications = getNotifications();
+
+  notifications.unshift({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    message,
+    type,
+    createdAt: new Date().toISOString(),
+    read: false,
+    page: currentPage,
+  });
+
+  saveNotifications(notifications.slice(0, 30));
+};
+
+const markNotificationsRead = () => {
+  saveNotifications(getNotifications().map((notification) => ({
+    ...notification,
+    read: true,
+  })));
+};
+
+const deleteNotification = (notificationId) => {
+  saveNotifications(getNotifications().filter((notification) => notification.id !== notificationId));
+};
+
 const showAlert = (message, type = "success") => {
   let container = document.getElementById("globalAlertContainer");
 
@@ -252,6 +312,11 @@ const showAlert = (message, type = "success") => {
   `;
 
   container.appendChild(alert);
+
+  if (shouldCreateNotification(message, type)) {
+    pushNotification(message, type);
+    renderNotificationMenus();
+  }
 
   window.setTimeout(() => {
     alert.remove();
@@ -398,6 +463,137 @@ const updateAdminLabels = (user) => {
   });
 };
 
+const renderNotificationMenus = () => {
+  const notifications = getNotifications();
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
+
+  document.querySelectorAll(".admin").forEach((adminBlock) => {
+    const trigger = adminBlock.querySelector(".notification-trigger");
+    const badge = adminBlock.querySelector(".notification-badge");
+    const menu = adminBlock.querySelector(".notification-menu");
+    const list = menu?.querySelector(".notification-list");
+
+    if (badge) {
+      badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+      badge.hidden = unreadCount === 0;
+    }
+
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = notifications.length
+      ? notifications.map((notification) => `
+        <div class="notification-item ${notification.read ? "" : "unread"}">
+          <button type="button" class="notification-item-body" data-notification-id="${notification.id}">
+            <strong>${escapeHtml(notification.message)}</strong>
+            <small>${escapeHtml(formatDateTime(notification.createdAt))}</small>
+          </button>
+          <button type="button" class="notification-delete-btn" data-delete-notification="${notification.id}" aria-label="Delete notification">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      `).join("")
+      : '<div class="notification-empty">No notifications yet.</div>';
+
+    menu.querySelectorAll("[data-notification-id]").forEach((item) => {
+      item.addEventListener("click", (event) => {
+        event.stopPropagation();
+        markNotificationsRead();
+        renderNotificationMenus();
+        adminBlock.classList.remove("notifications-open");
+      });
+    });
+
+    menu.querySelectorAll("[data-delete-notification]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteNotification(button.dataset.deleteNotification);
+        renderNotificationMenus();
+        adminBlock.classList.add("notifications-open");
+      });
+    });
+
+    if (trigger) {
+      trigger.setAttribute("aria-label", unreadCount ? `${unreadCount} new notifications` : "Notifications");
+    }
+  });
+};
+
+const initializeNotifications = () => {
+  document.querySelectorAll(".admin").forEach((adminBlock) => {
+    const bellIcon = adminBlock.querySelector(".bi-bell");
+
+    if (!bellIcon) {
+      return;
+    }
+
+    bellIcon.classList.add("notification-trigger");
+    bellIcon.setAttribute("role", "button");
+    bellIcon.setAttribute("tabindex", "0");
+    bellIcon.setAttribute("aria-expanded", "false");
+
+    if (!adminBlock.querySelector(".notification-badge")) {
+      const badge = document.createElement("span");
+      badge.className = "notification-badge";
+      badge.hidden = true;
+      bellIcon.appendChild(badge);
+    }
+
+    if (!adminBlock.querySelector(".notification-menu")) {
+      const menu = document.createElement("div");
+      menu.className = "notification-menu";
+      menu.innerHTML = `
+        <div class="notification-menu-card">
+          <div class="notification-menu-header">
+            <strong>Notifications</strong>
+          </div>
+          <div class="notification-list"></div>
+        </div>
+      `;
+      adminBlock.appendChild(menu);
+    }
+
+    if (!bellIcon.dataset.notificationsReady) {
+      bellIcon.dataset.notificationsReady = "true";
+
+      bellIcon.addEventListener("click", (event) => {
+        event.stopPropagation();
+        document.querySelectorAll(".admin.notifications-open").forEach((block) => {
+          if (block !== adminBlock) {
+            block.classList.remove("notifications-open");
+          }
+        });
+        adminBlock.classList.remove("profile-open");
+        adminBlock.classList.toggle("notifications-open");
+
+        if (adminBlock.classList.contains("notifications-open")) {
+          markNotificationsRead();
+          renderNotificationMenus();
+        }
+      });
+
+      bellIcon.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          bellIcon.click();
+        }
+      });
+    }
+  });
+
+  if (!document.body.dataset.notificationOutsideBound) {
+    document.body.dataset.notificationOutsideBound = "true";
+    document.addEventListener("click", () => {
+      document.querySelectorAll(".admin.notifications-open").forEach((block) => {
+        block.classList.remove("notifications-open");
+      });
+    });
+  }
+
+  renderNotificationMenus();
+};
+
 const syncProfileMenuContent = (adminBlock, menuId, user) => {
   const mergedUser = getMergedUserProfile(user || {});
   const menu = adminBlock.querySelector(".profile-menu");
@@ -501,6 +697,10 @@ const initializeProfileMenu = () => {
 
     adminBlock.addEventListener("click", (event) => {
       event.stopPropagation();
+
+      if (event.target.closest(".notification-trigger") || event.target.closest(".notification-menu")) {
+        return;
+      }
 
       if (event.target.closest(".profile-menu")) {
         return;
@@ -1958,6 +2158,290 @@ const initializePaymentsPage = () => {
   loadPayments();
 };
 
+const ensureUserModal = () => {
+  let modalElement = document.getElementById("userActionModal");
+
+  if (!modalElement) {
+    modalElement = document.createElement("div");
+    modalElement.className = "modal fade";
+    modalElement.id = "userActionModal";
+    modalElement.tabIndex = -1;
+    modalElement.innerHTML = `
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">User</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="userActionForm">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label" for="userActionFullName">Full Name</label>
+                <input class="form-control" id="userActionFullName" name="fullName" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="userActionEmail">Email</label>
+                <input class="form-control" id="userActionEmail" name="email" type="email" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="userActionPhone">Phone</label>
+                <input class="form-control" id="userActionPhone" name="phone" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="userActionPassword">Password</label>
+                <input class="form-control" id="userActionPassword" name="password" type="password" placeholder="Required for new users">
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="userActionRole">Role</label>
+                <select class="form-select" id="userActionRole" name="role">
+                  <option value="attendant">Attendant</option>
+                  <option value="manager">Manager</option>
+                  <option value="cashier">Cashier</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="mb-0">
+                <label class="form-label" for="userActionStatus">Status</label>
+                <select class="form-select" id="userActionStatus" name="status">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-dark" id="userActionSubmit">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modalElement);
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+  const form = modalElement.querySelector("#userActionForm");
+  const title = modalElement.querySelector(".modal-title");
+  const submitButton = modalElement.querySelector("#userActionSubmit");
+  const passwordInput = modalElement.querySelector("#userActionPassword");
+  let submitHandler = null;
+
+  if (!form.dataset.bound) {
+    form.dataset.bound = "true";
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!submitHandler) {
+        return;
+      }
+
+      submitButton.disabled = true;
+      const originalText = submitButton.textContent;
+      submitButton.textContent = "Saving...";
+
+      try {
+        const formData = new FormData(form);
+        const payload = {
+          fullName: String(formData.get("fullName") || "").trim(),
+          email: String(formData.get("email") || "").trim(),
+          phone: String(formData.get("phone") || "").trim(),
+          role: String(formData.get("role") || "attendant"),
+          status: String(formData.get("status") || "active"),
+        };
+        const password = String(formData.get("password") || "").trim();
+
+        if (password) {
+          payload.password = password;
+        }
+
+        await submitHandler(payload);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+      }
+    });
+  }
+
+  return {
+    open: ({
+      modalTitle,
+      submitText,
+      defaults = {},
+      passwordRequired = true,
+      onSubmit,
+    }) => {
+      title.textContent = modalTitle;
+      submitButton.textContent = submitText;
+      form.reset();
+      form.querySelector('[name="fullName"]').value = defaults.fullName || "";
+      form.querySelector('[name="email"]').value = defaults.email || "";
+      form.querySelector('[name="phone"]').value = defaults.phone || "";
+      form.querySelector('[name="role"]').value = defaults.role || "attendant";
+      form.querySelector('[name="status"]').value = defaults.status || "active";
+      passwordInput.value = "";
+      passwordInput.required = passwordRequired;
+      passwordInput.placeholder = passwordRequired ? "Required for new users" : "Leave blank to keep current password";
+      submitHandler = onSubmit;
+      modal.show();
+    },
+    close: () => modal.hide(),
+  };
+};
+
+const loadUsers = async () => {
+  const tableBody = document.getElementById("usersTableBody");
+  const tableInfo = document.getElementById("usersTableInfo");
+  const pagination = document.getElementById("usersPagination");
+
+  if (!tableBody || !tableInfo || !pagination) {
+    return;
+  }
+
+  renderLoadingRow(tableBody, 7, "Loading users...");
+
+  try {
+    const response = await apiRequest(`/users${buildQuery(pageState.users)}`);
+    const users = response.data?.users || [];
+    const meta = response.data?.pagination || {};
+    const userModal = ensureUserModal();
+
+    if (!users.length) {
+      renderLoadingRow(tableBody, 7, "No users found.");
+    } else {
+      tableBody.innerHTML = users.map((user) => `
+        <tr>
+          <td>${escapeHtml(user.id)}</td>
+          <td>${escapeHtml(user.fullName)}</td>
+          <td>${escapeHtml(user.email)}</td>
+          <td>${escapeHtml(user.role)}</td>
+          <td>${escapeHtml(user.phone)}</td>
+          <td><span class="user-status-pill ${user.status === "inactive" ? "inactive" : ""}">${escapeHtml(user.status)}</span></td>
+          <td>
+            <div class="users-action-group">
+              <button type="button" class="users-action-btn" data-edit-user="${user.id}" aria-label="Edit user"><i class="bi bi-pencil"></i></button>
+              <button type="button" class="users-action-btn" data-delete-user="${user.id}" aria-label="Delete user"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    const total = meta.total || 0;
+    const start = total ? ((meta.page - 1) * meta.limit) + 1 : 0;
+    const end = total ? Math.min(meta.page * meta.limit, total) : 0;
+    tableInfo.textContent = `Showing ${start} to ${end} of ${total} users`;
+
+    renderPagination(pagination, meta, (nextPage) => {
+      pageState.users.page = nextPage;
+      loadUsers();
+    });
+
+    tableBody.querySelectorAll("[data-edit-user]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const user = users.find((item) => item.id === button.dataset.editUser);
+
+        if (!user) {
+          return;
+        }
+
+        userModal.open({
+          modalTitle: "Edit User",
+          submitText: "Save Changes",
+          defaults: user,
+          passwordRequired: false,
+          onSubmit: async (payload) => {
+            await apiRequest(`/users/${user.id}`, {
+              method: "PUT",
+              body: payload,
+            });
+            showAlert("User updated successfully");
+            userModal.close();
+            await loadUsers();
+          },
+        });
+      });
+    });
+
+    tableBody.querySelectorAll("[data-delete-user]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const user = users.find((item) => item.id === button.dataset.deleteUser);
+
+        if (!user || !window.confirm(`Delete user ${user.fullName}?`)) {
+          return;
+        }
+
+        try {
+          await apiRequest(`/users/${user.id}`, {
+            method: "DELETE",
+          });
+          showAlert("User deleted successfully");
+          await loadUsers();
+        } catch (error) {
+          showAlert(error.message, "danger");
+        }
+      });
+    });
+  } catch (error) {
+    renderLoadingRow(tableBody, 7, "Failed to load users.");
+    showAlert(error.message, "danger");
+  }
+};
+
+const initializeUsersPage = () => {
+  const tableBody = document.getElementById("usersTableBody");
+
+  if (!tableBody) {
+    return;
+  }
+
+  const userModal = ensureUserModal();
+
+  document.getElementById("userSearch")?.addEventListener("input", (event) => {
+    pageState.users.search = event.target.value.trim();
+    pageState.users.page = 1;
+    loadUsers();
+  });
+
+  document.getElementById("filterUsersButton")?.addEventListener("click", () => {
+    const role = window.prompt("Filter by role: admin, manager, attendant, cashier", pageState.users.role);
+
+    if (role === null) {
+      return;
+    }
+
+    const status = window.prompt("Filter by status: active or inactive", pageState.users.status);
+
+    if (status === null) {
+      return;
+    }
+
+    pageState.users.role = role.trim();
+    pageState.users.status = status.trim();
+    pageState.users.page = 1;
+    loadUsers();
+  });
+
+  document.getElementById("addUserButton")?.addEventListener("click", () => {
+    userModal.open({
+      modalTitle: "Add New User",
+      submitText: "Create User",
+      passwordRequired: true,
+      onSubmit: async (payload) => {
+        await apiRequest("/users", {
+          method: "POST",
+          body: payload,
+        });
+        showAlert("User created successfully");
+        userModal.close();
+        await loadUsers();
+      },
+    });
+  });
+
+  loadUsers();
+};
+
 const renderRevenueChart = (records) => {
   const chart = document.getElementById("reportsRevenueChart");
 
@@ -1976,7 +2460,7 @@ const renderRevenueChart = (records) => {
     <div class="d-flex align-items-end gap-3 flex-wrap" style="min-height: 260px;">
       ${records.map((item) => `
         <div class="d-flex flex-column align-items-center flex-fill" style="min-width: 80px;">
-          <div class="rounded-3 w-100" style="height: ${Math.max((Number(item.amount || 0) / maxAmount) * 220, 12)}px; background: linear-gradient(180deg, #27ae60 0%, #0e5b34 100%);"></div>
+          <div class="rounded-3 w-100" style="height: ${Math.max((Number(item.amount || 0) / maxAmount) * 220, 12)}px; background: linear-gradient(180deg, #2d2d2d 0%, #111 100%);"></div>
           <small class="mt-2">${escapeHtml(item.date)}</small>
           <strong>${escapeHtml(formatCurrency(item.amount))}</strong>
         </div>
@@ -2005,14 +2489,14 @@ const renderVehicleStatusChart = (statusChart) => {
         <span>${total}</span>
       </div>
       <div class="progress mb-3" style="height: 16px;">
-        <div class="progress-bar bg-success" style="width: ${parkedPercent}%">${parkedPercent}%</div>
+        <div class="progress-bar" style="width: ${parkedPercent}%; background: #111;">${parkedPercent}%</div>
       </div>
       <div class="d-flex justify-content-between mb-2">
         <span>Parked</span>
         <strong>${parked}</strong>
       </div>
       <div class="progress mb-3" style="height: 16px;">
-        <div class="progress-bar bg-secondary" style="width: ${checkedOutPercent}%">${checkedOutPercent}%</div>
+        <div class="progress-bar" style="width: ${checkedOutPercent}%; background: #2d2d2d;">${checkedOutPercent}%</div>
       </div>
       <div class="d-flex justify-content-between">
         <span>Checked Out</span>
@@ -2110,6 +2594,15 @@ const initializeReportsPage = () => {
   });
 
   loadReports();
+
+  if (!document.body.dataset.reportRefreshBound) {
+    document.body.dataset.reportRefreshBound = "true";
+    window.setInterval(() => {
+      if (document.getElementById("reportTopSlotsTable") && !document.hidden) {
+        loadReports();
+      }
+    }, 30000);
+  }
 };
 
 const initializeAuthPages = () => {
@@ -2201,6 +2694,7 @@ const initializeApp = async () => {
     await loadCurrentUser();
   }
 
+  initializeNotifications();
   initializeProfileMenu();
 
   initializeDashboardPage();
@@ -2209,6 +2703,7 @@ const initializeApp = async () => {
   initializeTransactionsPage();
   initializePaymentsPage();
   initializeReportsPage();
+  initializeUsersPage();
 };
 
 initializeApp();

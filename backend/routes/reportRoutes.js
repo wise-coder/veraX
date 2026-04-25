@@ -10,7 +10,7 @@ const router = express.Router();
 router.get(
   "/",
   protect,
-  authorize("admin", "manager"),
+  authorize("admin", "manager", "attendant", "cashier"),
   [
     query("startDate").optional().isISO8601().withMessage("startDate must be a valid date"),
     query("endDate").optional().isISO8601().withMessage("endDate must be a valid date"),

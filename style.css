@@ -1217,7 +1217,7 @@ body.sidebar-open .sidebar-overlay {
 .report-filter-btn:hover,
 .report-export-btn:hover,
 .report-view-btn:hover {
-  border-color: #55c72a;
+  border-color: #111;
   color: #fff;
 }
 
@@ -1265,7 +1265,7 @@ body.sidebar-open .sidebar-overlay {
 }
 
 .report-stat-card span {
-  color: #55c72a;
+  color: #111;
   font-size: 13px;
   font-weight: 700;
 }
@@ -1276,9 +1276,9 @@ body.sidebar-open .sidebar-overlay {
   width: 62px;
   height: 62px;
   flex-shrink: 0;
-  border: 2px solid #55c72a;
+  border: 2px solid #111;
   border-radius: 50%;
-  color: #55c72a;
+  color: #111;
   font-size: 35px;
 }
 
@@ -1355,14 +1355,14 @@ body.sidebar-open .sidebar-overlay {
 
 .report-line-path {
   fill: none;
-  stroke: #55c72a;
+  stroke: #111;
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .report-line-points circle {
-  fill: #55c72a;
+  fill: #111;
 }
 
 .report-x-axis {
@@ -1387,7 +1387,7 @@ body.sidebar-open .sidebar-overlay {
   width: 24px;
   height: 4px;
   border-radius: 999px;
-  background: #55c72a;
+  background: #111;
   position: relative;
 }
 
@@ -1399,7 +1399,7 @@ body.sidebar-open .sidebar-overlay {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #55c72a;
+  background: #111;
   transform: translateY(-50%);
 }
 
@@ -1421,7 +1421,7 @@ body.sidebar-open .sidebar-overlay {
   height: 210px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: conic-gradient(#55c72a 0deg 240deg, #f1f1f1 240deg 360deg);
+  background: conic-gradient(#111 0deg 240deg, #f1f1f1 240deg 360deg);
 }
 
 .report-donut-chart::before {
@@ -1481,7 +1481,7 @@ body.sidebar-open .sidebar-overlay {
 }
 
 .report-status-dot.active {
-  background: #55c72a;
+  background: #111;
 }
 
 .report-status-dot.inactive {
@@ -1541,6 +1541,122 @@ body.sidebar-open .sidebar-overlay {
 
 .report-avatar i {
   font-size: 24px;
+}
+
+.notification-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #2f8f12;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notification-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  width: 320px;
+  display: none;
+  z-index: 1200;
+}
+
+.admin.notifications-open .notification-menu {
+  display: block;
+}
+
+.notification-menu-card {
+  background: #fff;
+  color: #111;
+  border: 1px solid #d7d7d7;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.notification-menu-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #ececec;
+}
+
+.notification-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ececec;
+}
+
+.notification-item.unread {
+  background: #f4fbef;
+}
+
+.notification-item-body {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #111;
+  text-align: left;
+  padding: 4px;
+  display: grid;
+  gap: 4px;
+}
+
+.notification-item strong {
+  font-size: 14px;
+}
+
+.notification-item small {
+  color: #666;
+  font-size: 12px;
+}
+
+.notification-delete-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #666;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.notification-delete-btn:hover {
+  background: #efefef;
+  color: #111;
+}
+
+.notification-delete-btn i {
+  font-size: 12px;
+}
+
+.notification-empty {
+  padding: 18px 16px;
+  color: #666;
+  font-size: 14px;
 }
 
 .admin-chevron {
@@ -1911,6 +2027,11 @@ body.sidebar-open .sidebar-overlay {
   .profile-menu {
     right: -10px;
     width: min(310px, calc(100vw - 32px));
+  }
+
+  .notification-menu {
+    left: 0;
+    width: min(320px, calc(100vw - 32px));
   }
 
   .settings-grid {
