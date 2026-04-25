@@ -77,18 +77,19 @@
           <div class="settings-form-group">
             <label for="lotTimezone">Timezone</label>
             <select class="settings-select" id="lotTimezone">
-              <option selected>(UTC+02:00) Nairobi</option>
-              <option>(UTC+02:00) Cairo</option>
-              <option>(UTC+03:00) Nairobi</option>
+              <option value="Africa/Cairo">(UTC+02:00) Cairo</option>
+              <option value="Africa/Khartoum">(UTC+02:00) Khartoum</option>
+              <option value="Africa/Nairobi">(UTC+03:00) Nairobi</option>
             </select>
           </div>
 
           <div class="settings-form-group">
             <label for="dateFormat">Date Format</label>
             <select class="settings-select" id="dateFormat">
-              <option selected>MM/DD/YYYY</option>
-              <option>DD/MM/YYYY</option>
-              <option>YYYY-MM-DD</option>
+              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+              <option value="YYYY-MM-DD HH:mm">YYYY-MM-DD HH:mm</option>
             </select>
           </div>
 
@@ -107,24 +108,24 @@
 
           <div class="settings-form-group">
             <label for="totalParkingSlots">Total Parking Slots</label>
-            <input class="settings-input" id="totalParkingSlots" type="text" value="20">
+            <input class="settings-input" id="totalParkingSlots" type="number" min="1" value="20">
           </div>
 
           <div class="settings-form-group">
             <label for="defaultDuration">Default Parking Duration (hours)</label>
-            <input class="settings-input" id="defaultDuration" type="text" value="2">
+            <input class="settings-input" id="defaultDuration" type="number" min="1" value="2">
           </div>
 
           <div class="settings-form-group">
             <label for="gracePeriod">Overstay Grace Period (minutes)</label>
-            <input class="settings-input" id="gracePeriod" type="text" value="15">
+            <input class="settings-input" id="gracePeriod" type="number" min="0" value="15">
           </div>
 
           <div class="settings-toggle-list">
             <div class="settings-toggle-row">
               <span>Allow Overnight Parking</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="allowOvernightParking" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -132,7 +133,7 @@
             <div class="settings-toggle-row">
               <span>Enable Slot Selection</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="enableSlotSelection" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -140,7 +141,7 @@
             <div class="settings-toggle-row">
               <span>Auto Assign Slot</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="autoAssignSlot" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -153,35 +154,35 @@
           <div class="settings-info-list">
             <div class="settings-info-row">
               <span>System Name</span>
-              <strong>veraX</strong>
+              <strong id="systemNameValue">veraX</strong>
             </div>
             <div class="settings-info-row">
               <span>Version</span>
-              <strong>1.0.0</strong>
+              <strong id="systemVersionValue">1.0.0</strong>
             </div>
             <div class="settings-info-row">
               <span>Database</span>
-              <strong class="success-text">Connected</strong>
+              <strong class="success-text" id="databaseStatusValue">Connected</strong>
             </div>
             <div class="settings-info-row">
               <span>Last Backup</span>
-              <strong>May 15, 2024 02:00 AM</strong>
+              <strong id="lastBackupValue">Not yet backed up</strong>
             </div>
             <div class="settings-info-row">
               <span>Total Users</span>
-              <strong>7</strong>
+              <strong id="totalUsersValue">--</strong>
             </div>
             <div class="settings-info-row">
               <span>Total Vehicles</span>
-              <strong>45</strong>
+              <strong id="totalVehiclesValue">--</strong>
             </div>
             <div class="settings-info-row">
               <span>System Status</span>
-              <span class="settings-status-pill">Online</span>
+              <span class="settings-status-pill" id="systemStatusValue">Online</span>
             </div>
           </div>
 
-          <button class="settings-secondary-btn" type="button">
+          <button class="settings-secondary-btn" type="button" id="backupSettingsButton">
             <i class="bi bi-cloud-arrow-up me-2"></i>
             Backup Now
           </button>
@@ -194,35 +195,35 @@
             <div class="settings-toggle-row">
               <span>Email Notifications</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="emailNotifications" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
             <div class="settings-toggle-row">
               <span>SMS Notifications</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="smsNotifications" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
             <div class="settings-toggle-row">
               <span>Payment Notifications</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="paymentNotifications" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
             <div class="settings-toggle-row">
               <span>Overstay Alerts</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="overstayAlerts" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
             <div class="settings-toggle-row">
               <span>Daily Summary Reports</span>
               <label class="settings-toggle">
-                <input type="checkbox">
+                <input id="dailySummaryReports" type="checkbox">
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -235,22 +236,22 @@
           <div class="settings-form-group">
             <label for="passwordPolicy">Password Policy</label>
             <select class="settings-select" id="passwordPolicy">
-              <option selected>Strong</option>
-              <option>Medium</option>
-              <option>Basic</option>
+              <option value="strong">Strong</option>
+              <option value="medium">Medium</option>
+              <option value="basic">Basic</option>
             </select>
           </div>
 
           <div class="settings-form-group">
             <label for="sessionTimeout">Session Timeout (minutes)</label>
-            <input class="settings-input" id="sessionTimeout" type="text" value="30">
+            <input class="settings-input" id="sessionTimeout" type="number" min="1" value="30">
           </div>
 
           <div class="settings-toggle-list">
             <div class="settings-toggle-row">
               <span>Two-Factor Authentication</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="twoFactorAuthentication" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -258,14 +259,14 @@
 
           <div class="settings-form-group mt-3">
             <label for="attemptLimit">Login Attempt Limit</label>
-            <input class="settings-input" id="attemptLimit" type="text" value="5">
+            <input class="settings-input" id="attemptLimit" type="number" min="1" value="5">
           </div>
 
           <div class="settings-toggle-list">
             <div class="settings-toggle-row">
               <span>Require Strong Password</span>
               <label class="settings-toggle">
-                <input type="checkbox" checked>
+                <input id="requireStrongPassword" type="checkbox" checked>
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
@@ -278,24 +279,25 @@
           <div class="settings-form-group">
             <label for="themeSetting">Theme</label>
             <select class="settings-select" id="themeSetting">
-              <option selected>Dark</option>
-              <option>Light</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
             </select>
           </div>
 
           <div class="settings-form-group">
             <label class="settings-inline-label">Primary Color</label>
             <div class="settings-color-row">
+              <input class="settings-color-picker" id="primaryColor" type="color" value="#2f8f12" aria-label="Primary color">
               <span class="settings-color-preview"></span>
-              <span class="settings-color-value">#2F8F12</span>
+              <span class="settings-color-value" id="primaryColorValue">#2F8F12</span>
             </div>
           </div>
 
           <div class="settings-form-group">
             <label for="sidebarPosition">Sidebar Position</label>
             <select class="settings-select" id="sidebarPosition">
-              <option selected>Left</option>
-              <option>Right</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
             </select>
           </div>
 
@@ -303,7 +305,7 @@
             <div class="settings-toggle-row">
               <span>Compact Sidebar</span>
               <label class="settings-toggle">
-                <input type="checkbox">
+                <input id="compactSidebar" type="checkbox">
                 <span class="settings-toggle-slider"></span>
               </label>
             </div>
