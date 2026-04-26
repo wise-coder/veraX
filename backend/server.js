@@ -8,6 +8,7 @@ const morgan = require("morgan");
 const connectDB = require("./config/db");
 const Company = require("./models/Company");
 const Payment = require("./models/Payment");
+const Notification = require("./models/Notification");
 const ParkingSlot = require("./models/ParkingSlot");
 const Setting = require("./models/Setting");
 const Transaction = require("./models/Transaction");
@@ -53,6 +54,7 @@ app.use("/api/vehicles", require("./routes/vehicleRoutes"));
 app.use("/api/parking-slots", require("./routes/parkingSlotRoutes"));
 app.use("/api/transactions", require("./routes/transactionRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/settings", require("./routes/settingRoutes"));
@@ -70,6 +72,7 @@ const startServer = async () => {
     Vehicle.syncIndexes(),
     ParkingSlot.syncIndexes(),
     Payment.syncIndexes(),
+    Notification.syncIndexes(),
     Transaction.syncIndexes(),
     Setting.syncIndexes(),
   ]);

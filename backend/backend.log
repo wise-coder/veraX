@@ -1,0 +1,37 @@
+MongoDB connected: 127.0.0.1
+Server running on port 5000
+[0mPOST /api/vehicles/check-in [32m201[0m 198.456 ms - 7274[0m
+[0mGET /api/dashboard/overview [32m200[0m 52.483 ms - 5868[0m
+[0mGET /api/parking-slots/available [32m200[0m 18.508 ms - 3552[0m
+[0mGET / [32m200[0m 0.560 ms - 86[0m
+[0mPOST /api/vehicles/check-in [32m201[0m 96.999 ms - 7789[0m
+[0mGET /api/dashboard/overview [32m200[0m 37.093 ms - 6375[0m
+[0mGET /api/parking-slots/available [32m200[0m 12.557 ms - 3359[0m
+[0mPOST /api/vehicles/check-in [32m201[0m 81.008 ms - 8268[0m
+[0mGET /api/dashboard/overview [32m200[0m 101.136 ms - 6870[0m
+[0mPOST /api/vehicles/check-out/69edfc6430c05d281b2919c7 [32m200[0m 79.101 ms - 8371[0m
+[0mGET /api/dashboard/overview [32m200[0m 41.816 ms - 6844[0m
+[0mGET /api/auth/me [36m304[0m 34.866 ms - -[0m
+[0mGET /api/settings [36m304[0m 25.708 ms - -[0m
+[0mGET /api/payments?page=1&limit=10 [32m200[0m 39.792 ms - 597[0m
+[0mPUT /api/payments/69edfe0bffbc31136af9325e/mark-paid [32m200[0m 37.601 ms - 523[0m
+[0mGET /api/payments?page=1&limit=10 [32m200[0m 24.227 ms - 682[0m
+[0mGET /api/auth/me [36m304[0m 46.743 ms - -[0m
+[0mGET /api/settings [36m304[0m 52.006 ms - -[0m
+[0mGET /api/transactions?page=1&limit=10 [32m200[0m 23.399 ms - 3061[0m
+[0mGET /api/auth/me [36m304[0m 7.776 ms - -[0m
+[0mGET /api/settings [36m304[0m 8.135 ms - -[0m
+[0mGET /api/dashboard/overview [32m200[0m 46.974 ms - 6847[0m
+[0mGET /api/reports [32m200[0m 62.986 ms - 1777[0m
+[0mGET /api/auth/me [36m304[0m 7.038 ms - -[0m
+[0mGET /api/settings [36m304[0m 8.202 ms - -[0m
+[0mGET /api/payments?page=1&limit=10 [36m304[0m 18.290 ms - -[0m
+[0mGET /api/auth/me [36m304[0m 6.236 ms - -[0m
+[0mGET /api/settings [36m304[0m 7.487 ms - -[0m
+[0mGET /api/transactions?page=1&limit=10 [36m304[0m 16.450 ms - -[0m
+[0mGET /api/auth/me [36m304[0m 7.554 ms - -[0m
+[0mGET /api/settings [36m304[0m 10.541 ms - -[0m
+[0mGET /api/parking-slots?page=1&limit=20 [32m200[0m 20.473 ms - 4700[0m
+[0mGET /api/auth/me [36m304[0m 6.716 ms - -[0m
+[0mGET /api/settings [36m304[0m 39.756 ms - -[0m
+[0mGET /api/settings [36m304[0m 24.489 ms - -[0m

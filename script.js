@@ -5,7 +5,6 @@ const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
 const PENDING_OTP_EMAIL_KEY = "pendingSignupOtpEmail";
 const PROFILE_PREFS_KEY = "profilePrefs";
-const NOTIFICATION_KEY = "veraxNotifications";
 const SETTINGS_CACHE_KEY = "veraxSettings";
 const SETTINGS_BACKUP_KEY = "veraxSettingsBackupAt";
 const BRAND_NAME = "veraX";
@@ -16,6 +15,7 @@ const publicPages = new Set(["index.html", "login.html", "signup.html", ""]);
 
 const pageState = {
   currentUser: null,
+  notifications: [],
   dashboard: {
     overview: null,
   },
@@ -248,20 +248,10 @@ const formatDuration = (entryTime, exitTime = new Date()) => {
   return `${hours}h ${minutes}m`;
 };
 
-const getNotifications = () => {
-  try {
-    return JSON.parse(localStorage.getItem(NOTIFICATION_KEY) || "[]");
-  } catch {
-    return [];
-  }
-};
+const getNotifications = () => pageState.notifications;
 
-const saveNotifications = (notifications) => {
-  try {
-    localStorage.setItem(NOTIFICATION_KEY, JSON.stringify(notifications));
-  } catch {
-    // Ignore storage errors.
-  }
+const setNotifications = (notifications) => {
+  pageState.notifications = Array.isArray(notifications) ? notifications : [];
 };
 
 const shouldCreateNotification = (message, type) => {
@@ -274,30 +264,69 @@ const shouldCreateNotification = (message, type) => {
     || /(success|created|updated|deleted|checked|saved|exported|marked|paid|assigned)/i.test(message);
 };
 
-const pushNotification = (message, type = "info") => {
-  const notifications = getNotifications();
+const fetchNotifications = async () => {
+  if (!isProtectedPage() || !getToken()) {
+    setNotifications([]);
+    return [];
+  }
 
-  notifications.unshift({
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    message,
-    type,
-    createdAt: new Date().toISOString(),
-    read: false,
-    page: currentPage,
-  });
-
-  saveNotifications(notifications.slice(0, 30));
+  try {
+    const response = await apiRequest("/notifications");
+    const notifications = Array.isArray(response?.data) ? response.data : [];
+    setNotifications(notifications);
+    return notifications;
+  } catch (error) {
+    setNotifications([]);
+    return [];
+  }
 };
 
-const markNotificationsRead = () => {
-  saveNotifications(getNotifications().map((notification) => ({
+const pushNotification = async (message, type = "info") => {
+  if (!isProtectedPage() || !getToken()) {
+    return null;
+  }
+
+  const response = await apiRequest("/notifications", {
+    method: "POST",
+    body: {
+      message,
+      type,
+      page: currentPage,
+    },
+  });
+
+  const createdNotification = response?.data || null;
+
+  if (createdNotification) {
+    setNotifications([createdNotification, ...getNotifications()].slice(0, 30));
+  }
+
+  return createdNotification;
+};
+
+const markNotificationsRead = async () => {
+  const unreadNotifications = getNotifications().filter((notification) => !notification.read);
+
+  if (!unreadNotifications.length) {
+    return;
+  }
+
+  await Promise.all(unreadNotifications.map((notification) => apiRequest(`/notifications/${notification.id}/read`, {
+    method: "PUT",
+  })));
+
+  setNotifications(getNotifications().map((notification) => ({
     ...notification,
     read: true,
   })));
 };
 
-const deleteNotification = (notificationId) => {
-  saveNotifications(getNotifications().filter((notification) => notification.id !== notificationId));
+const deleteNotification = async (notificationId) => {
+  await apiRequest(`/notifications/${notificationId}`, {
+    method: "DELETE",
+  });
+
+  setNotifications(getNotifications().filter((notification) => notification.id !== notificationId));
 };
 
 const showAlert = (message, type = "success") => {
@@ -322,8 +351,13 @@ const showAlert = (message, type = "success") => {
   container.appendChild(alert);
 
   if (shouldCreateNotification(message, type)) {
-    pushNotification(message, type);
-    renderNotificationMenus();
+    pushNotification(message, type)
+      .then(() => {
+        renderNotificationMenus();
+      })
+      .catch(() => {
+        // Ignore notification persistence failures so alerts still work.
+      });
   }
 
   window.setTimeout(() => {
@@ -768,18 +802,28 @@ const renderNotificationMenus = () => {
     menu.querySelectorAll("[data-notification-id]").forEach((item) => {
       item.addEventListener("click", (event) => {
         event.stopPropagation();
-        markNotificationsRead();
-        renderNotificationMenus();
-        adminBlock.classList.remove("notifications-open");
+        markNotificationsRead()
+          .then(() => {
+            renderNotificationMenus();
+            adminBlock.classList.remove("notifications-open");
+          })
+          .catch(() => {
+            // Ignore notification update failures in the menu interaction.
+          });
       });
     });
 
     menu.querySelectorAll("[data-delete-notification]").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        deleteNotification(button.dataset.deleteNotification);
-        renderNotificationMenus();
-        adminBlock.classList.add("notifications-open");
+        deleteNotification(button.dataset.deleteNotification)
+          .then(() => {
+            renderNotificationMenus();
+            adminBlock.classList.add("notifications-open");
+          })
+          .catch(() => {
+            // Ignore notification deletion failures in the menu interaction.
+          });
       });
     });
 
@@ -789,7 +833,7 @@ const renderNotificationMenus = () => {
   });
 };
 
-const initializeNotifications = () => {
+const initializeNotifications = async () => {
   document.querySelectorAll(".admin").forEach((adminBlock) => {
     const bellIcon = adminBlock.querySelector(".bi-bell");
 
@@ -837,8 +881,13 @@ const initializeNotifications = () => {
         adminBlock.classList.toggle("notifications-open");
 
         if (adminBlock.classList.contains("notifications-open")) {
-          markNotificationsRead();
-          renderNotificationMenus();
+          markNotificationsRead()
+            .then(() => {
+              renderNotificationMenus();
+            })
+            .catch(() => {
+              // Ignore notification update failures in the menu interaction.
+            });
         }
       });
 
@@ -860,6 +909,7 @@ const initializeNotifications = () => {
     });
   }
 
+  await fetchNotifications();
   renderNotificationMenus();
 };
 
@@ -3402,7 +3452,7 @@ const initializeApp = async () => {
     await loadAppSettings();
   }
 
-  initializeNotifications();
+  await initializeNotifications();
   initializeProfileMenu();
 
   initializeDashboardPage();
