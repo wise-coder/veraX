@@ -30,29 +30,22 @@ if (
 
 const allowedOrigins = [
   "https://verax-atqs.onrender.com",
-  ...(process.env.CLIENT_URL || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean),
+  process.env.CLIENT_URL,
 ].filter(Boolean);
 
-const corsOptions = {
+app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-
-    console.log("Blocked by CORS:", origin);
-    return callback(new Error("Not allowed by CORS"));
+    return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 204,
-};
+}));
 
-app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
+app.options(/.*/, cors());
 app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json());
