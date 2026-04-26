@@ -355,9 +355,7 @@ body.sidebar-compact .sidebar-illustration {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle, #72d642 8%, #063f0b 35%, transparent 36%),
-    repeating-conic-gradient(#0b4b0d 0deg 12deg, #7bdc45 12deg 20deg);
+  background: url("images/tyre.png") center / cover no-repeat;
   box-shadow: 0 0 12px #000;
 }
 
@@ -535,6 +533,9 @@ body.sidebar-compact .sidebar-illustration {
 .actions-card {
   border: 1px solid #555;
   border-radius: 6px;
+}
+
+.actions-card {
   overflow: hidden;
 }
 
@@ -542,15 +543,69 @@ body.sidebar-compact .sidebar-illustration {
   margin: 0;
 }
 
-.table-card thead th {
+.recent-vehicles-card {
+  height: 300px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+
+.recent-vehicles-card h3,
+.recent-vehicles-card h4 {
+  position: sticky;
+  top: 0;
+  background: var(--card, #fff);
+  z-index: 5;
+}
+
+.recent-vehicles-card .table-scroll-container {
+  display: block;
+  overflow: visible;
+}
+
+.recent-vehicles-card .table-scroll-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recent-vehicles-card thead th {
+  position: sticky;
+  top: 55px;
+  background: var(--card, #fff);
+  z-index: 4;
+}
+
+.recent-vehicles-card::-webkit-scrollbar {
+  width: 8px;
+}
+
+.recent-vehicles-card::-webkit-scrollbar-thumb {
+  background: #000;
+  border-radius: 10px;
+}
+
+.table-card .table-scroll-container thead th {
   color: #111 !important;
   text-transform: uppercase;
   font-weight: 800;
 }
 
-.table-card tbody td {
+.table-card .table-scroll-container tbody td {
   color: #111;
   font-weight: 700;
+}
+
+[data-theme="dark"] .table-card .table-scroll-container thead {
+  background: #000;
+}
+
+[data-theme="dark"] .recent-vehicles-card h3,
+[data-theme="dark"] .recent-vehicles-card h4,
+[data-theme="dark"] .recent-vehicles-card thead th {
+  background: var(--card, #000);
+}
+
+[data-theme="dark"] .recent-vehicles-card::-webkit-scrollbar-thumb {
+  background: #fff;
 }
 
 .btn-checkout {
@@ -3051,8 +3106,8 @@ html[data-theme] .grass {
 }
 
 html[data-theme] .grass span {
-  background: var(--app-border);
-  box-shadow: none;
+  background: url("images/tyre.png") center / cover no-repeat;
+  box-shadow: 0 0 12px #000;
 }
 
 html[data-theme] .road {
