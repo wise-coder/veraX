@@ -1,38 +1,41 @@
-const nodemailer = require("nodemailer");
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  family: 4,
-  requireTLS: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 20000,
-});
-
 async function sendEmail(to, subject, html) {
-  try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error("Missing EMAIL_USER or EMAIL_PASS");
-    }
+  const apiKey = process.env.BREVO_API_KEY;
+  const fromEmail = process.env.EMAIL_FROM_ADDRESS;
+  const fromName = process.env.EMAIL_FROM_NAME || "VeraX";
+  const payload = typeof to === "object" && to !== null
+    ? to
+    : { to, subject, html };
 
-    const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  if (!apiKey || !fromEmail) {
+    throw new Error("Missing Brevo email configuration");
+  }
 
-    await transporter.sendMail({
-      from,
-      to,
-      subject,
-      html,
-    });
-  } catch (error) {
-    console.error("Email send error:", error);
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "api-key": apiKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: fromName,
+        email: fromEmail,
+      },
+      to: [{ email: payload.to }],
+      subject: payload.subject,
+      htmlContent: payload.html,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("Brevo API email error:", data);
     throw new Error("Failed to send email");
   }
+
+  return data;
 }
 
 module.exports = sendEmail;
