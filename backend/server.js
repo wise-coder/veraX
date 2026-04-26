@@ -28,13 +28,19 @@ if (
   throw new Error("Invalid JWT_SECRET configuration");
 }
 
-const allowedOrigins = (process.env.CLIENT_URL || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  ...new Set([
+    "https://verax-atqs.onrender.com",
+    ...(process.env.CLIENT_URL || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ]),
+];
+
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
