@@ -9,6 +9,11 @@ const {
   resendEmailOtp,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
+const {
+  loginRateLimiter,
+  resendOtpRateLimiter,
+  verifyOtpRateLimiter,
+} = require("../middleware/rateLimitMiddleware");
 
 const router = express.Router();
 
@@ -26,6 +31,7 @@ router.post(
 
 router.post(
   "/login",
+  loginRateLimiter,
   [
     body("email").trim().isEmail().withMessage("Valid email is required"),
     body("password").notEmpty().withMessage("Password is required"),
@@ -35,6 +41,7 @@ router.post(
 
 router.post(
   "/verify-email-otp",
+  verifyOtpRateLimiter,
   [
     body("email").trim().isEmail().withMessage("Valid email is required"),
     body("otp")
@@ -47,6 +54,7 @@ router.post(
 
 router.post(
   "/resend-email-otp",
+  resendOtpRateLimiter,
   [
     body("email").trim().isEmail().withMessage("Valid email is required"),
   ],

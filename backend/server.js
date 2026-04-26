@@ -17,6 +17,17 @@ const Vehicle = require("./models/Vehicle");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 const app = express();
+const jwtSecret = String(process.env.JWT_SECRET || "").trim();
+
+if (
+  !jwtSecret
+  || jwtSecret === "replace_with_a_long_random_secret"
+  || jwtSecret.includes("change_me")
+  || jwtSecret.length < 32
+) {
+  throw new Error("Invalid JWT_SECRET configuration");
+}
+
 const allowedOrigins = (process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())

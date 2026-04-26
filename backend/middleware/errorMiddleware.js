@@ -23,10 +23,15 @@ const errorHandler = (error, _req, res, _next) => {
   }
 
   const normalizedStatus = statusCode === 200 ? 500 : statusCode;
+  const safeMessage = normalizedStatus >= 500 ? "Something went wrong" : (error.message || "Request failed");
+
+  if (normalizedStatus >= 500) {
+    console.error(error);
+  }
 
   res.status(normalizedStatus).json({
     success: false,
-    message: error.message || "Server error",
+    message: safeMessage,
   });
 };
 

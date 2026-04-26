@@ -8,6 +8,7 @@ const sendEmail = require("../utils/sendEmail");
 const { ensureSettings, ensureUserCompany, isStrongPassword } = require("../utils/systemHelpers");
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
+const INVALID_AUTH_MESSAGE = "Invalid credentials or request";
 
 const validationErrorResponse = (req, res) => {
   const errors = validationResult(req);
@@ -112,7 +113,7 @@ const signup = async (req, res, next) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: "Email already exists",
+        message: INVALID_AUTH_MESSAGE,
       });
     }
 
@@ -168,7 +169,7 @@ const login = async (req, res, next) => {
     if (!user || !(await user.matchPassword(password))) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: INVALID_AUTH_MESSAGE,
       });
     }
 
@@ -233,20 +234,16 @@ const verifyEmailOtp = async (req, res, next) => {
       .populate("company", "name owner");
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: "User not found",
+        message: INVALID_AUTH_MESSAGE,
       });
     }
 
     if (user.isEmailVerified) {
-      return res.json({
-        success: true,
-        message: "Email already verified",
-        data: {
-          user: sanitizeUser(user),
-          token: generateToken(user),
-        },
+      return res.status(400).json({
+        success: false,
+        message: "Email already verified. Please login.",
       });
     }
 
@@ -267,7 +264,7 @@ const verifyEmailOtp = async (req, res, next) => {
     if (user.emailOtp !== hashOtp(otp)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid OTP code",
+        message: INVALID_AUTH_MESSAGE,
       });
     }
 
@@ -314,16 +311,16 @@ const resendEmailOtp = async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail }).select("+emailOtp +emailOtpExpires");
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: "User not found",
+        message: INVALID_AUTH_MESSAGE,
       });
     }
 
     if (user.isEmailVerified) {
       return res.status(400).json({
         success: false,
-        message: "Email already verified",
+        message: INVALID_AUTH_MESSAGE,
       });
     }
 

@@ -32,7 +32,7 @@ router.post(
 router.get("/:id", authorize("admin", "manager", "attendant"), [param("id").isMongoId().withMessage("User id must be valid")], getUserById);
 router.put(
   "/:id",
-  authorize("admin", "manager", "attendant"),
+  authorize("admin"),
   [
     param("id").isMongoId().withMessage("User id must be valid"),
     body("fullName").optional().trim().notEmpty().withMessage("Full name cannot be empty"),
@@ -44,6 +44,6 @@ router.put(
   ],
   updateUser,
 );
-router.delete("/:id", authorize("admin", "manager", "attendant"), [param("id").isMongoId().withMessage("User id must be valid")], deleteUser);
+router.delete("/:id", authorize("admin"), [param("id").isMongoId().withMessage("User id must be valid")], deleteUser);
 
 module.exports = router;

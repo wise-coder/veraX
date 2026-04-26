@@ -38,6 +38,17 @@ const sanitizeUser = (user) => ({
   updatedAt: user.updatedAt,
 });
 
+const ensureAdminUser = (req, res) => {
+  if (req.user?.role === "admin") {
+    return null;
+  }
+
+  return res.status(403).json({
+    success: false,
+    message: "Only admin can perform this action",
+  });
+};
+
 const getUsers = async (req, res, next) => {
   try {
     const { search, status, role } = req.query;
@@ -79,11 +90,10 @@ const createUser = async (req, res, next) => {
       return validationResponse;
     }
 
-    if (req.user?.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admin can create users",
-      });
+    const adminCheckResponse = ensureAdminUser(req, res);
+
+    if (adminCheckResponse) {
+      return adminCheckResponse;
     }
 
     const { fullName, email, phone, password, role, status } = req.body;
@@ -157,11 +167,10 @@ const updateUser = async (req, res, next) => {
       return validationResponse;
     }
 
-    if (req.body.role && req.user?.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Only admin can assign roles",
-      });
+    const adminCheckResponse = ensureAdminUser(req, res);
+
+    if (adminCheckResponse) {
+      return adminCheckResponse;
     }
 
     const settings = await ensureSettings(req.companyId);
@@ -241,6 +250,12 @@ const updateUser = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
+    const adminCheckResponse = ensureAdminUser(req, res);
+
+    if (adminCheckResponse) {
+      return adminCheckResponse;
+    }
+
     const user = await User.findOne({ _id: req.params.id, company: req.companyId }).populate("company", "name");
 
     if (!user) {
