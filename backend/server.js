@@ -32,9 +32,7 @@ const allowedOrigins = (process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-
-app.use(helmet());
-app.use(cors({
+const corsOptions = {
   origin(origin, callback) {
     if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -44,7 +42,14 @@ app.use(cors({
     callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
-}));
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(helmet());
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
