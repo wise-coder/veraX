@@ -1,5 +1,5 @@
 (() => {
-  const API_BASE_URL = "http://localhost:5000/api";
+  const API_BASE_URL = "https://verax.up.railway.app/api";
   const AUTH_TOKEN_KEY = "token";
   const AUTH_USER_KEY = "user";
 
