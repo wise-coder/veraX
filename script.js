@@ -1,6 +1,6 @@
 const rootElement = document.documentElement;
 const themeToggle = document.querySelector("[data-theme-toggle]");
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:5000/api`;
+const API_BASE_URL = "verax.up.railway.app";
 const AUTH_TOKEN_KEY = "token";
 const AUTH_USER_KEY = "user";
 const PENDING_OTP_EMAIL_KEY = "pendingSignupOtpEmail";
